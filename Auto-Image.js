@@ -1650,7 +1650,7 @@ async function autoRefreshSequence() {
       const payload = {
         coords: coords,
         colors: colors,
-        t: capturedCaptchaToken,
+        t: localStorage.getItem('cf_token'),
       };
 
       const res = await fetch(
