@@ -454,7 +454,7 @@
         const payload = {
           coords: [pixelX, pixelY],
           colors: [color],
-          t: capturedCaptchaToken,
+          t: localStorage.getItem('cf_token'),
         };
         const res = await fetch(
           `https://backend.wplace.live/s0/pixel/${regionX}/${regionY}`,
