@@ -1,19 +1,23 @@
-(async () => {
+;(async () => {
   const CONFIG = {
     START_X: 742,
     START_Y: 1148,
     PIXELS_PER_LINE: 100,
     DELAY: 1000,
     THEME: {
-      primary: '#000000',
-      secondary: '#111111',
-      accent: '#222222',
-      text: '#ffffff',
-      highlight: '#775ce3',
-      success: '#00ff00',
-      error: '#ff0000'
-    }
-  };
+      primary: "#1a1a2e",
+      secondary: "#16213e",
+      accent: "#0f3460",
+      text: "#00ff41",
+      highlight: "#ff6b35",
+      success: "#39ff14",
+      error: "#ff073a",
+      warning: "#ffff00",
+      neon: "#00ffff",
+      purple: "#bf00ff",
+      pink: "#ff1493",
+    },
+  }
 
   const state = {
     running: false,
@@ -23,386 +27,559 @@
     lastPixel: null,
     minimized: false,
     menuOpen: false,
-    language: 'en',
+    language: "en",
     autoRefresh: true,
-    pausedForManual: false
-  };
+    pausedForManual: false,
+  }
 
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
   const waitForSelector = async (selector, interval = 200, timeout = 5000) => {
-    const start = Date.now();
+    const start = Date.now()
     while (Date.now() - start < timeout) {
-      const el = document.querySelector(selector);
-      if (el) return el;
-      await sleep(interval);
+      const el = document.querySelector(selector)
+      if (el) return el
+      await sleep(interval)
     }
-    return null;
-  };
+    return null
+  }
 
-  const originalFetch = window.fetch;
-  let capturedCaptchaToken = null;
+  const originalFetch = window.fetch
+  let capturedCaptchaToken = null
+  let stoppedForToken = false // Declare stoppedForToken variable
   window.fetch = async (url, options = {}) => {
-    if (typeof url === 'string' && url.includes('https://backend.wplace.live/s0/pixel/')) {
+    if (typeof url === "string" && url.includes("https://backend.wplace.live/s0/pixel/")) {
       try {
-        const payload = JSON.parse(options.body || '{}');
+        const payload = JSON.parse(options.body || "{}")
         if (payload.t) {
-          console.log('✅ CAPTCHA Token Captured:', payload.t);
-          capturedCaptchaToken = payload.t;
+          console.log("✅ CAPTCHA Token Captured:", payload.t)
+          capturedCaptchaToken = payload.t
           if (state.pausedForManual) {
-            state.pausedForManual = false;
-            state.running = true;
-            updateUI(
-              state.language === 'pt' ? '🚀 Pintura reiniciada!' : '🚀 Painting resumed!',
-              'success'
-            );
-            paintLoop();
+            state.pausedForManual = false
+            state.running = true
+            window.updateUI(
+              // Use window.updateUI instead of updateUI
+              state.language === "pt" ? "🚀 Pintura reiniciada!" : "🚀 Painting resumed!",
+              "success",
+            )
+            paintLoop()
           }
         }
-      } catch (e) {
-      }
+      } catch (e) {}
     }
-    return originalFetch(url, options);
-  };
+    return originalFetch(url, options)
+  }
 
   const fetchAPI = async (url, options = {}) => {
     try {
       const res = await fetch(url, {
-        credentials: 'include',
-        ...options
-      });
-      return await res.json();
+        credentials: "include",
+        ...options,
+      })
+      return await res.json()
     } catch (e) {
-      return null;
+      return null
     }
-  };
+  }
 
   const getRandomPosition = () => ({
     x: Math.floor(Math.random() * CONFIG.PIXELS_PER_LINE),
-    y: Math.floor(Math.random() * CONFIG.PIXELS_PER_LINE)
-  });
+    y: Math.floor(Math.random() * CONFIG.PIXELS_PER_LINE),
+  })
 
   const paintPixel = async (x, y) => {
-    const randomColor = Math.floor(Math.random() * 31) + 1;
-    const url = `https://backend.wplace.live/s0/pixel/${CONFIG.START_X}/${CONFIG.START_Y}`;
-    const payload = JSON.stringify({ coords: [x, y], colors: [randomColor], t: capturedCaptchaToken });
+    const randomColor = Math.floor(Math.random() * 31) + 1
+    const url = `https://backend.wplace.live/s0/pixel/${CONFIG.START_X}/${CONFIG.START_Y}`
+    const payload = JSON.stringify({ coords: [x, y], colors: [randomColor], t: capturedCaptchaToken })
     try {
       const res = await originalFetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-        credentials: 'include',
-        body: payload
-      });
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=UTF-8" },
+        credentials: "include",
+        body: payload,
+      })
       if (res.status === 403) {
-        console.error('❌ 403 Forbidden. CAPTCHA token might be invalid or expired.');
-        capturedCaptchaToken = null;
-        stoppedForToken = true;
-        return 'token_error';
+        console.error("❌ 403 Forbidden. CAPTCHA token might be invalid or expired.")
+        capturedCaptchaToken = null
+        stoppedForToken = true
+        return "token_error"
       }
-      const data = await res.json();
-      return data;
+      const data = await res.json()
+      return data
     } catch (e) {
-      return null;
+      return null
     }
-  };
+  }
 
   const getCharge = async () => {
-    const data = await fetchAPI('https://backend.wplace.live/me');
+    const data = await fetchAPI("https://backend.wplace.live/me")
     if (data) {
-      state.userInfo = data;
+      state.userInfo = data
       state.charges = {
         count: Math.floor(data.charges.count),
         max: Math.floor(data.charges.max),
-        cooldownMs: data.charges.cooldownMs
-      };
+        cooldownMs: data.charges.cooldownMs,
+      }
       if (state.userInfo.level) {
-        state.userInfo.level = Math.floor(state.userInfo.level);
+        state.userInfo.level = Math.floor(state.userInfo.level)
       }
     }
-    return state.charges;
-  };
+    return state.charges
+  }
 
   const detectUserLocation = async () => {
     try {
-      const response = await fetch('https://ipapi.co/json/');
-      const data = await response.json();
-      if (data.country === 'BR') {
-        state.language = 'pt';
-      } else if (data.country === 'US') {
-        state.language = 'en';
+      const response = await fetch("https://ipapi.co/json/")
+      const data = await response.json()
+      if (data.country === "BR") {
+        state.language = "pt"
+      } else if (data.country === "US") {
+        state.language = "en"
       } else {
-        state.language = 'en';
+        state.language = "en"
       }
     } catch {
-      state.language = 'en';
+      state.language = "en"
     }
-  };
+  }
 
   const paintLoop = async () => {
     while (state.running) {
-      const { count, cooldownMs } = state.charges;
-      
+      const { count, cooldownMs } = state.charges
+
       if (count < 1) {
-        updateUI(state.language === 'pt' ? `⌛ Sem cargas. Esperando ${Math.ceil(cooldownMs/1000)}s...` : `⌛ No charges. Waiting ${Math.ceil(cooldownMs/1000)}s...`, 'status');
-        await sleep(cooldownMs);
-        await getCharge();
-        continue;
+        window.updateUI(
+          // Use window.updateUI instead of updateUI
+          state.language === "pt"
+            ? `⌛ Sem cargas. Esperando ${Math.ceil(cooldownMs / 1000)}s...`
+            : `⌛ No charges. Waiting ${Math.ceil(cooldownMs / 1000)}s...`,
+          "status",
+        )
+        await sleep(cooldownMs)
+        await getCharge()
+        continue
       }
 
-      const randomPos = getRandomPosition();
-      const paintResult = await paintPixel(randomPos.x, randomPos.y);
-      if (paintResult === 'token_error') {
+      const randomPos = getRandomPosition()
+      const paintResult = await paintPixel(randomPos.x, randomPos.y)
+      if (paintResult === "token_error") {
         if (state.autoRefresh) {
-          await getCharge();
+          await getCharge()
           if (state.charges.count < 2) {
             if (!state.pausedForManual) {
-              updateUI(
-                state.language === 'pt'
-                  ? '⚡ Aguardando pelo menos 2 cargas para auto-refresh...'
-                  : 'Waiting for at least 2 charges for auto-refresh...',
-                'status'
-              );
-              state.pausedForManual = true;
+              window.updateUI(
+                // Use window.updateUI instead of updateUI
+                state.language === "pt"
+                  ? "⚡ Aguardando pelo menos 2 cargas para auto-refresh..."
+                  : "Waiting for at least 2 charges for auto-refresh...",
+                "status",
+              )
+              state.pausedForManual = true
             }
             while (state.charges.count < 2) {
-              await sleep(60000);
-              await getCharge();
-              updateStats();
+              await sleep(60000)
+              await getCharge()
+              window.updateStats() // Use window.updateStats instead of updateStats
             }
-            state.pausedForManual = false;
+            state.pausedForManual = false
           }
-          updateUI(
-            state.language === 'pt'
-              ? '❌ Token expirado. Aguardando elemento Paint...'
-              : '❌ CAPTCHA token expired. Waiting for Paint button...',
-            'error'
-          );
-          const mainPaintBtn = await waitForSelector('button.btn.btn-primary.btn-lg, button.btn-primary.sm\\:btn-xl');
-          if (mainPaintBtn) mainPaintBtn.click();
-          await sleep(500);
-          updateUI(
-            state.language === 'pt' ? 'Selecionando transparente...' : 'Selecting transparent...',
-            'status'
-          );
-          const transBtn = await waitForSelector('button#color-0');
-          if (transBtn) transBtn.click();
-          await sleep(500);
-          const canvas = await waitForSelector('canvas');
+          window.updateUI(
+            // Use window.updateUI instead of updateUI
+            state.language === "pt"
+              ? "❌ Token expirado. Aguardando elemento Paint..."
+              : "❌ CAPTCHA token expired. Waiting for Paint button...",
+            "error",
+          )
+          const mainPaintBtn = await waitForSelector("button.btn.btn-primary.btn-lg, button.btn-primary.sm\\:btn-xl")
+          if (mainPaintBtn) mainPaintBtn.click()
+          await sleep(500)
+          window.updateUI(
+            // Use window.updateUI instead of updateUI
+            state.language === "pt" ? "Selecionando transparente..." : "Selecting transparent...",
+            "status",
+          )
+          const transBtn = await waitForSelector("button#color-0")
+          if (transBtn) transBtn.click()
+          await sleep(500)
+          const canvas = await waitForSelector("canvas")
           if (canvas) {
-            canvas.setAttribute('tabindex', '0');
-            canvas.focus();
-            const rect = canvas.getBoundingClientRect();
-            const centerX = Math.round(rect.left + rect.width / 2);
-            const centerY = Math.round(rect.top + rect.height / 2);
-            const moveEvt = new MouseEvent('mousemove', {
+            canvas.setAttribute("tabindex", "0")
+            canvas.focus()
+            const rect = canvas.getBoundingClientRect()
+            const centerX = Math.round(rect.left + rect.width / 2)
+            const centerY = Math.round(rect.top + rect.height / 2)
+            const moveEvt = new MouseEvent("mousemove", {
               clientX: centerX,
               clientY: centerY,
-              bubbles: true
-            });
-            canvas.dispatchEvent(moveEvt);
-            const keyDown = new KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true });
-            const keyUp = new KeyboardEvent('keyup', { key: ' ', code: 'Space', bubbles: true });
-            canvas.dispatchEvent(keyDown);
-            canvas.dispatchEvent(keyUp);
+              bubbles: true,
+            })
+            canvas.dispatchEvent(moveEvt)
+            const keyDown = new KeyboardEvent("keydown", { key: " ", code: "Space", bubbles: true })
+            const keyUp = new KeyboardEvent("keyup", { key: " ", code: "Space", bubbles: true })
+            canvas.dispatchEvent(keyDown)
+            canvas.dispatchEvent(keyUp)
           }
-          await sleep(500);
-          updateUI(
-            state.language === 'pt' ? 'Confirmando pintura...' : 'Confirming paint...',
-            'status'
-          );
-          let confirmBtn = await waitForSelector(
-            'button.btn.btn-primary.btn-lg, button.btn.btn-primary.sm\\:btn-xl'
-          );
+          await sleep(500)
+          window.updateUI(
+            // Use window.updateUI instead of updateUI
+            state.language === "pt" ? "Confirmando pintura..." : "Confirming paint...",
+            "status",
+          )
+          let confirmBtn = await waitForSelector("button.btn.btn-primary.btn-lg, button.btn.btn-primary.sm\\:btn-xl")
           if (!confirmBtn) {
-            const allPrimary = Array.from(document.querySelectorAll('button.btn-primary'));
-            confirmBtn = allPrimary.length ? allPrimary[allPrimary.length - 1] : null;
+            const allPrimary = Array.from(document.querySelectorAll("button.btn-primary"))
+            confirmBtn = allPrimary.length ? allPrimary[allPrimary.length - 1] : null
           }
-          confirmBtn?.click();
+          confirmBtn?.click()
         } else {
           // insufficient charges or auto-refresh disabled
           if (state.autoRefresh && state.charges.count < 2) {
-            updateUI(
-              state.language === 'pt'
-                ? '⚡ Cargas insuficientes para auto-refresh. Por favor, clique manualmente.'
-                : 'Insufficient charges for auto-refresh. Please click manually.',
-              'error'
-            );
+            window.updateUI(
+              // Use window.updateUI instead of updateUI
+              state.language === "pt"
+                ? "⚡ Cargas insuficientes para auto-refresh. Por favor, clique manualmente."
+                : "Insufficient charges for auto-refresh. Please click manually.",
+              "error",
+            )
           }
           if (!state.pausedForManual) {
-            updateUI(
-              state.language === 'pt'
-                ? 'Auto-refresh desativado. Por favor, clique no botão pintura manualmente.'
-                : 'Auto-refresh disabled. Please click the Paint button manually.',
-              'status'
-            );
-            state.pausedForManual = true;
+            window.updateUI(
+              // Use window.updateUI instead of updateUI
+              state.language === "pt"
+                ? "Auto-refresh desativado. Por favor, clique no botão pintura manualmente."
+                : "Auto-refresh disabled. Please click the Paint button manually.",
+              "status",
+            )
+            state.pausedForManual = true
           }
-          state.running = false;
-          return;
+          state.running = false
+          return
         }
-        await sleep(1000);
-        continue;
+        await sleep(1000)
+        continue
       }
-      
+
       if (paintResult?.painted === 1) {
-        state.paintedCount++;
-        state.lastPixel = { 
+        state.paintedCount++
+        state.lastPixel = {
           x: CONFIG.START_X + randomPos.x,
           y: CONFIG.START_Y + randomPos.y,
-          time: new Date() 
-        };
-        state.charges.count--;
-        
-        document.getElementById('paintEffect').style.animation = 'pulse 0.5s';
+          time: new Date(),
+        }
+        state.charges.count--
+
+        document.getElementById("paintEffect").style.animation = "pulse 0.5s"
         setTimeout(() => {
-          document.getElementById('paintEffect').style.animation = '';
-        }, 500);
-        
-        updateUI(state.language === 'pt' ? '✅ Pixel pintado!' : '✅ Pixel painted!', 'success');
+          document.getElementById("paintEffect").style.animation = ""
+        }, 500)
+
+        window.updateUI(
+          // Use window.updateUI instead of updateUI
+          state.language === "pt" ? "✅ Pixel pintado!" : "✅ Pixel painted!",
+          "success",
+        )
       } else {
-        updateUI(state.language === 'pt' ? '❌ Falha ao pintar' : '❌ Failed to paint', 'error');
+        window.updateUI(
+          // Use window.updateUI instead of updateUI
+          state.language === "pt" ? "❌ Falha ao pintar" : "❌ Failed to paint",
+          "error",
+        )
       }
 
-      await sleep(CONFIG.DELAY);
-      updateStats();
+      await sleep(CONFIG.DELAY)
+      window.updateStats() // Use window.updateStats instead of updateStats
     }
-  };
+  }
 
   const createUI = () => {
-    if (state.menuOpen) return;
-    state.menuOpen = true;
+    if (state.menuOpen) return
+    state.menuOpen = true
 
-    const fontAwesome = document.createElement('link');
-    fontAwesome.rel = 'stylesheet';
-    fontAwesome.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
-    document.head.appendChild(fontAwesome);
+    const googleFonts = document.createElement("link")
+    googleFonts.rel = "stylesheet"
+    googleFonts.href = "https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+    document.head.appendChild(googleFonts)
 
-    const style = document.createElement('style');
+    const fontAwesome = document.createElement("link")
+    fontAwesome.rel = "stylesheet"
+    fontAwesome.href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    document.head.appendChild(fontAwesome)
+
+    const style = document.createElement("style")
     style.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+      
       @keyframes pulse {
-        0% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.7); }n
-        70% { box-shadow: 0 0 0 10px rgba(0, 255, 0, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0); }
+        0% { box-shadow: 0 0 0 0 rgba(0, 255, 65, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(0, 255, 65, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(0, 255, 65, 0); }
       }
       @keyframes slideIn {
         from { transform: translateY(20px); opacity: 0; }
         to { transform: translateY(0); opacity: 1; }
       }
-      .wplace-bot-panel {
+      @keyframes neonGlow {
+        0%, 100% { 
+          text-shadow: 0 0 5px currentColor, 0 0 10px currentColor, 0 0 15px currentColor;
+        }
+        50% { 
+          text-shadow: 0 0 2px currentColor, 0 0 5px currentColor, 0 0 8px currentColor;
+        }
+      }
+      @keyframes pixelBlink {
+        0%, 50% { opacity: 1; }
+        51%, 100% { opacity: 0.7; }
+      }
+      @keyframes scanline {
+        0% { transform: translateY(-100%); }
+        100% { transform: translateY(400px); }
+      }
+      
+      #wplace-image-bot-container {
         position: fixed;
         top: 20px;
         right: 20px;
-        width: 250px;
+        width: 320px;
         background: ${CONFIG.THEME.primary};
-        border: 1px solid ${CONFIG.THEME.accent};
-        border-radius: 8px;
+        border: 3px solid ${CONFIG.THEME.text};
+        border-radius: 0;
         padding: 0;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-        z-index: 9999;
-        font-family: 'Segoe UI', Roboto, sans-serif;
+        box-shadow: 
+          0 0 20px rgba(0, 255, 65, 0.3),
+          inset 0 0 20px rgba(0, 255, 65, 0.1);
+        z-index: 999999;
+        font-family: 'Press Start 2P', monospace;
         color: ${CONFIG.THEME.text};
         animation: slideIn 0.4s ease-out;
         overflow: hidden;
+        image-rendering: pixelated;
       }
+      
+      #wplace-image-bot-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, ${CONFIG.THEME.neon}, transparent);
+        animation: scanline 3s linear infinite;
+        z-index: 1;
+        pointer-events: none;
+      }
+      
+      #wplace-image-bot-container::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+          repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(0, 255, 65, 0.03) 2px,
+            rgba(0, 255, 65, 0.03) 4px
+          );
+        pointer-events: none;
+        z-index: 1;
+      }
+      
       .wplace-header {
         padding: 12px 15px;
         background: ${CONFIG.THEME.secondary};
         color: ${CONFIG.THEME.highlight};
-        font-size: 16px;
-        font-weight: 600;
+        font-size: 10px;
+        font-weight: normal;
         display: flex;
         justify-content: space-between;
         align-items: center;
         cursor: move;
         user-select: none;
+        border-bottom: 2px solid ${CONFIG.THEME.text};
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        animation: neonGlow 2s ease-in-out infinite alternate;
+        position: relative;
+        z-index: 2;
       }
+      
       .wplace-header-title {
         display: flex;
         align-items: center;
         gap: 8px;
       }
+      
       .wplace-header-controls {
         display: flex;
         gap: 10px;
       }
+      
       .wplace-header-btn {
-        background: none;
-        border: none;
+        background: ${CONFIG.THEME.accent};
+        border: 2px solid ${CONFIG.THEME.text};
         color: ${CONFIG.THEME.text};
         cursor: pointer;
-        opacity: 0.7;
-        transition: opacity 0.2s;
+        padding: 4px 6px;
+        font-family: 'Press Start 2P', monospace;
+        font-size: 8px;
+        transition: all 0.1s;
+        image-rendering: pixelated;
       }
+      
       .wplace-header-btn:hover {
-        opacity: 1;
+        background: ${CONFIG.THEME.text};
+        color: ${CONFIG.THEME.primary};
+        box-shadow: 0 0 10px ${CONFIG.THEME.text};
       }
+      
       .wplace-content {
         padding: 15px;
-        display: ${state.minimized ? 'none' : 'block'};
+        display: block;
+        position: relative;
+        z-index: 2;
       }
+      
       .wplace-controls {
         display: flex;
-        gap: 10px;
+        flex-direction: column;
+        gap: 8px;
         margin-bottom: 15px;
       }
+      
       .wplace-btn {
-        flex: 1;
-        padding: 10px;
-        border: none;
-        border-radius: 6px;
-        font-weight: 600;
+        padding: 12px 8px;
+        border: 2px solid;
+        border-radius: 0;
+        font-weight: normal;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 8px;
-        transition: all 0.2s;
+        transition: all 0.1s;
+        font-family: 'Press Start 2P', monospace;
+        font-size: 8px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        image-rendering: pixelated;
+        position: relative;
+        overflow: hidden;
       }
+      
+      .wplace-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.5s;
+      }
+      
+      .wplace-btn:hover::before {
+        left: 100%;
+      }
+      
       .wplace-btn:hover {
-        transform: translateY(-2px);
+        transform: none;
+        box-shadow: 0 0 15px currentColor;
+        animation: pixelBlink 0.5s infinite;
       }
+      
       .wplace-btn-primary {
         background: ${CONFIG.THEME.accent};
-        color: white;
+        color: ${CONFIG.THEME.text};
+        border-color: ${CONFIG.THEME.text};
       }
+      
+      .wplace-btn-start {
+        background: ${CONFIG.THEME.success};
+        color: ${CONFIG.THEME.primary};
+        border-color: ${CONFIG.THEME.success};
+      }
+      
       .wplace-btn-stop {
         background: ${CONFIG.THEME.error};
-        color: white;
+        color: ${CONFIG.THEME.text};
+        border-color: ${CONFIG.THEME.error};
       }
+      
+      .wplace-btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+        transform: none !important;
+        animation: none !important;
+        box-shadow: none !important;
+      }
+      
       .wplace-stats {
         background: ${CONFIG.THEME.secondary};
         padding: 12px;
-        border-radius: 6px;
+        border: 2px solid ${CONFIG.THEME.text};
+        border-radius: 0;
         margin-bottom: 15px;
+        box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.1);
       }
+      
       .wplace-stat-item {
         display: flex;
         justify-content: space-between;
         padding: 6px 0;
-        font-size: 14px;
+        font-size: 8px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
       }
+      
       .wplace-stat-label {
         display: flex;
         align-items: center;
         gap: 6px;
-        opacity: 0.8;
+        opacity: 0.9;
       }
+      
       .wplace-status {
-        padding: 8px;
-        border-radius: 4px;
+        padding: 10px;
+        border: 2px solid;
+        border-radius: 0;
         text-align: center;
-        font-size: 13px;
+        font-size: 8px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        position: relative;
+        overflow: hidden;
       }
+      
       .status-default {
-        background: rgba(255,255,255,0.1);
+        background: ${CONFIG.THEME.accent};
+        border-color: ${CONFIG.THEME.text};
+        color: ${CONFIG.THEME.text};
       }
+      
       .status-success {
-        background: rgba(0, 255, 0, 0.1);
-        color: ${CONFIG.THEME.success};
+        background: ${CONFIG.THEME.success};
+        border-color: ${CONFIG.THEME.success};
+        color: ${CONFIG.THEME.primary};
+        box-shadow: 0 0 15px ${CONFIG.THEME.success};
       }
+      
       .status-error {
-        background: rgba(255, 0, 0, 0.1);
-        color: ${CONFIG.THEME.error};
+        background: ${CONFIG.THEME.error};
+        border-color: ${CONFIG.THEME.error};
+        color: ${CONFIG.THEME.text};
+        box-shadow: 0 0 15px ${CONFIG.THEME.error};
+        animation: pixelBlink 0.5s infinite;
       }
+      
+      .status-warning {
+        background: ${CONFIG.THEME.warning};
+        border-color: ${CONFIG.THEME.warning};
+        color: ${CONFIG.THEME.primary};
+        box-shadow: 0 0 15px ${CONFIG.THEME.warning};
+      }
+      
       #paintEffect {
         position: absolute;
         top: 0;
@@ -410,10 +587,44 @@
         width: 100%;
         height: 100%;
         pointer-events: none;
-        border-radius: 8px;
+        border-radius: 0;
       }
-    `;
-    document.head.appendChild(style);
+      
+      /* Retro checkbox styling */
+      input[type="checkbox"] {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border: 2px solid ${CONFIG.THEME.text};
+        background: ${CONFIG.THEME.secondary};
+        margin-right: 8px;
+        position: relative;
+        cursor: pointer;
+      }
+      
+      input[type="checkbox"]:checked {
+        background: ${CONFIG.THEME.success};
+      }
+      
+      input[type="checkbox"]:checked::after {
+        content: '✓';
+        position: absolute;
+        top: -2px;
+        left: 1px;
+        color: ${CONFIG.THEME.primary};
+        font-size: 12px;
+        font-weight: bold;
+      }
+      
+      /* Icon styling for retro feel */
+      .fas, .fa {
+        filter: drop-shadow(0 0 3px currentColor);
+      }
+    `
+
+    document.head.appendChild(style)
 
     const translations = {
       pt: {
@@ -424,7 +635,7 @@
         user: "Usuário",
         pixels: "Pixels",
         charges: "Cargas",
-        level: "Level"
+        level: "Level",
       },
       en: {
         title: "WPlace Auto-Farm",
@@ -434,14 +645,14 @@
         user: "User",
         pixels: "Pixels",
         charges: "Charges",
-        level: "Level"
-      }
-    };
+        level: "Level",
+      },
+    }
 
-    const t = translations[state.language] || translations.en;
+    const t = translations[state.language] || translations.en
 
-    const panel = document.createElement('div');
-    panel.className = 'wplace-bot-panel';
+    const panel = document.createElement("div")
+    panel.id = "wplace-image-bot-container"
     panel.innerHTML = `
       <div id="paintEffect"></div>
       <div class="wplace-header">
@@ -450,8 +661,8 @@
           <span>${t.title}</span>
         </div>
         <div class="wplace-header-controls">
-          <button id="minimizeBtn" class="wplace-header-btn" title="${state.language === 'pt' ? 'Minimizar' : 'Minimize'}">
-            <i class="fas fa-${state.minimized ? 'expand' : 'minus'}"></i>
+          <button id="minimizeBtn" class="wplace-header-btn" title="${state.language === "pt" ? "Minimizar" : "Minimize"}">
+            <i class="fas fa-${state.minimized ? "expand" : "minus"}"></i>
           </button>
         </div>
       </div>
@@ -461,16 +672,16 @@
             <i class="fas fa-play"></i>
             <span>${t.start}</span>
           </button>
-          <label style="display:flex; align-items:center; margin-left:10px;">
-            <input type="checkbox" id="autoRefreshCheckbox" ${state.autoRefresh ? 'checked' : ''}/>
-            <span style="margin-left:4px; font-size:14px;">Auto Refresh</span>
+          <label style="display:flex; align-items:center; margin-top:8px; font-family: 'Press Start 2P', monospace; font-size: 8px; color: ${CONFIG.THEME.text};">
+            <input type="checkbox" id="autoRefreshCheckbox" ${state.autoRefresh ? "checked" : ""}/>
+            <span>Auto Refresh</span>
           </label>
         </div>
         
         <div class="wplace-stats">
           <div id="statsArea">
             <div class="wplace-stat-item">
-              <div class="wplace-stat-label"><i class="fas fa-paint-brush"></i> ${state.language === 'pt' ? 'Carregando...' : 'Loading...'}</div>
+              <div class="wplace-stat-label"><i class="fas fa-paint-brush"></i> ${state.language === "pt" ? "Carregando..." : "Loading..."}</div>
             </div>
           </div>
         </div>
@@ -479,122 +690,139 @@
           ${t.ready}
         </div>
       </div>
-    `;
-    
-    document.body.appendChild(panel);
-    
-    const header = panel.querySelector('.wplace-header');
-    let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-    
-    header.onmousedown = dragMouseDown;
-    
-    function dragMouseDown(e) {
-      if (e.target.closest('.wplace-header-btn')) return;
-      
-      e = e || window.event;
-      e.preventDefault();
-      pos3 = e.clientX;
-      pos4 = e.clientY;
-      document.onmouseup = closeDragElement;
-      document.onmousemove = elementDrag;
-    }
-    
-    function elementDrag(e) {
-      e = e || window.event;
-      e.preventDefault();
-      pos1 = pos3 - e.clientX;
-      pos2 = pos4 - e.clientY;
-      pos3 = e.clientX;
-      pos4 = e.clientY;
-      panel.style.top = (panel.offsetTop - pos2) + "px";
-      panel.style.left = (panel.offsetLeft - pos1) + "px";
-    }
-    
-    function closeDragElement() {
-      document.onmouseup = null;
-      document.onmousemove = null;
-    }
-    
-    const toggleBtn = panel.querySelector('#toggleBtn');
-    const minimizeBtn = panel.querySelector('#minimizeBtn');
-    const statusText = panel.querySelector('#statusText');
-    const content = panel.querySelector('.wplace-content');
-    const statsArea = panel.querySelector('#statsArea');
-    
-    toggleBtn.addEventListener('click', () => {
-      state.running = !state.running;
-      
-      if (state.running && !capturedCaptchaToken) {
-        updateUI(state.language === 'pt' ? '❌ Token não capturado. Clique em qualquer pixel primeiro.' : '❌ CAPTCHA token not captured. Please click any pixel manually first.', 'error');
-        state.running = false;
-        return;
-      }
-  
-      if (state.running) {
-        toggleBtn.innerHTML = `<i class="fas fa-stop"></i> <span>${t.stop}</span>`;
-        toggleBtn.classList.remove('wplace-btn-primary');
-        toggleBtn.classList.add('wplace-btn-stop');
-        updateUI(state.language === 'pt' ? '🚀 Pintura iniciada!' : '🚀 Painting started!', 'success');
-        paintLoop();
-      } else {
-        toggleBtn.innerHTML = `<i class="fas fa-play"></i> <span>${t.start}</span>`;
-        toggleBtn.classList.add('wplace-btn-primary');
-        toggleBtn.classList.remove('wplace-btn-stop');
-        statsArea.innerHTML = '';
-        updateUI(state.language === 'pt' ? '⏹️ Parado' : '⏹️ Stopped', 'default');
-      }
-    });
-    
-    minimizeBtn.addEventListener('click', () => {
-      state.minimized = !state.minimized;
-      content.style.display = state.minimized ? 'none' : 'block';
-      minimizeBtn.innerHTML = `<i class="fas fa-${state.minimized ? 'expand' : 'minus'}"></i>`;
-    });
-    
-    const autoRefreshCheckbox = panel.querySelector('#autoRefreshCheckbox');
-    autoRefreshCheckbox.addEventListener('change', () => {
-      state.autoRefresh = autoRefreshCheckbox.checked;
-    });
-    
-    window.addEventListener('beforeunload', () => {
-      state.menuOpen = false;
-    });
-  };
+    `
 
-  window.updateUI = (message, type = 'default') => {
-    const statusText = document.querySelector('#statusText');
-    if (statusText) {
-      statusText.textContent = message;
-      statusText.className = `wplace-status status-${type}`;
-      statusText.style.animation = 'none';
-      void statusText.offsetWidth;
-      statusText.style.animation = 'slideIn 0.3s ease-out';
+    document.body.appendChild(panel)
+
+    const header = panel.querySelector(".wplace-header")
+    let pos1 = 0,
+      pos2 = 0,
+      pos3 = 0,
+      pos4 = 0
+
+    header.onmousedown = dragMouseDown
+
+    function dragMouseDown(e) {
+      if (e.target.closest(".wplace-header-btn")) return
+
+      e = e || window.event
+      e.preventDefault()
+      pos3 = e.clientX
+      pos4 = e.clientY
+      document.onmouseup = closeDragElement
+      document.onmousemove = elementDrag
     }
-  };
+
+    function elementDrag(e) {
+      e = e || window.event
+      e.preventDefault()
+      pos1 = pos3 - e.clientX
+      pos2 = pos4 - e.clientY
+      pos3 = e.clientX
+      pos4 = e.clientY
+      panel.style.top = panel.offsetTop - pos2 + "px"
+      panel.style.left = panel.offsetLeft - pos1 + "px"
+    }
+
+    function closeDragElement() {
+      document.onmouseup = null
+      document.onmousemove = null
+    }
+
+    const toggleBtn = panel.querySelector("#toggleBtn")
+    const minimizeBtn = panel.querySelector("#minimizeBtn")
+    const statusText = panel.querySelector("#statusText")
+    const content = panel.querySelector(".wplace-content")
+    const statsArea = panel.querySelector("#statsArea")
+
+    toggleBtn.addEventListener("click", () => {
+      state.running = !state.running
+
+      if (state.running && !capturedCaptchaToken) {
+        window.updateUI(
+          // Use window.updateUI instead of updateUI
+          state.language === "pt"
+            ? "❌ Token não capturado. Clique em qualquer pixel primeiro."
+            : "❌ CAPTCHA token not captured. Please click any pixel manually first.",
+          "error",
+        )
+        state.running = false
+        return
+      }
+
+      if (state.running) {
+        toggleBtn.innerHTML = `<i class="fas fa-stop"></i> <span>${t.stop}</span>`
+        toggleBtn.classList.remove("wplace-btn-primary")
+        toggleBtn.classList.add("wplace-btn-stop")
+        window.updateUI(
+          // Use window.updateUI instead of updateUI
+          state.language === "pt" ? "🚀 Pintura iniciada!" : "🚀 Painting started!",
+          "success",
+        )
+        paintLoop()
+      } else {
+        toggleBtn.innerHTML = `<i class="fas fa-play"></i> <span>${t.start}</span>`
+        toggleBtn.classList.add("wplace-btn-primary")
+        toggleBtn.classList.remove("wplace-btn-stop")
+        statsArea.innerHTML = ""
+        window.updateUI(
+          // Use window.updateUI instead of updateUI
+          state.language === "pt" ? "⏹️ Parado" : "⏹️ Stopped",
+          "default",
+        )
+      }
+    })
+
+    minimizeBtn.addEventListener("click", () => {
+      state.minimized = !state.minimized
+      content.style.display = state.minimized ? "none" : "block"
+      minimizeBtn.innerHTML = `<i class="fas fa-${state.minimized ? "expand" : "minus"}"></i>`
+    })
+
+    const autoRefreshCheckbox = panel.querySelector("#autoRefreshCheckbox")
+    autoRefreshCheckbox.addEventListener("change", () => {
+      state.autoRefresh = autoRefreshCheckbox.checked
+    })
+
+    window.addEventListener("beforeunload", () => {
+      state.menuOpen = false
+    })
+  }
+
+  window.updateUI = (message, type = "default") => {
+    const statusText = document.querySelector("#statusText")
+    if (statusText) {
+      statusText.textContent = message
+      statusText.className = `wplace-status status-${type}`
+      statusText.style.animation = "none"
+      void statusText.offsetWidth
+      statusText.style.animation = "slideIn 0.3s ease-out"
+    }
+  }
 
   window.updateStats = async () => {
-    await getCharge();
-    const statsArea = document.querySelector('#statsArea');
+    await getCharge()
+    const statsArea = document.querySelector("#statsArea")
     if (statsArea) {
       const t = {
         pt: {
           user: "Usuário",
           pixels: "Pixels",
           charges: "Cargas",
-          level: "Level"
+          level: "Level",
         },
         en: {
           user: "User",
           pixels: "Pixels",
           charges: "Charges",
-          level: "Level"
-        }
+          level: "Level",
+        },
       }[state.language] || {
         user: "User",
         pixels: "Pixels",
         charges: "Charges",
-        level: "Level"
-      };
+        level: "Level",
+      }
 
       statsArea.innerHTML = `
         <div class="wplace-stat-item">
@@ -611,14 +839,14 @@
         </div>
         <div class="wplace-stat-item">
           <div class="wplace-stat-label"><i class="fas fa-star"></i> ${t.level}</div>
-          <div>${state.userInfo?.level || '0'}</div>
+          <div>${state.userInfo?.level || "0"}</div>
         </div>
-      `;
+      `
     }
-  };
+  }
 
-  await detectUserLocation();
-  createUI();
-  await getCharge();
-  updateStats();
-})();
+  await detectUserLocation()
+  createUI()
+  await getCharge()
+  window.updateStats() // Use window.updateStats instead of updateStats
+})()
