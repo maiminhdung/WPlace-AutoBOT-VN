@@ -1,5 +1,4 @@
 (async () => {
-  // CONFIGURATION CONSTANTS
   const CONFIG = {
     COOLDOWN_DEFAULT: 31000,
     TRANSPARENCY_THRESHOLD: 100,
@@ -17,8 +16,64 @@
     },
   };
 
-  // BILINGUAL TEXT STRINGS
   const TEXTS = {
+    ru: { 
+      title: "WPlace Авто-Изображение",
+      initBot: "Запустить Авто-БОТа",
+      uploadImage: "Загрузить изображение",
+      resizeImage: "Изменить размер",
+      selectPosition: "Выбрать позицию",
+      startPainting: "Начать рисовать",
+      stopPainting: "Остановить",
+      checkingColors: "🔍 Проверка доступных цветов...",
+      noColorsFound: "❌ Откройте палитру цветов на сайте и попробуйте снова!",
+      colorsFound: "✅ Найдено {count} доступных цветов",
+      loadingImage: "🖼️ Загрузка изображения...",
+      imageLoaded: "✅ Изображение загружено, {count} валидных пикселей",
+      imageError: "❌ Ошибка загрузки изображения",
+      selectPositionAlert: "Нарисуйте первый пиксель в том месте, где должен начаться арт!",
+      waitingPosition: "👆 Ожидание выбора стартового пикселя...",
+      positionSet: "✅ Позиция успешно установлена!",
+      positionTimeout: "❌ Время на выбор позиции истекло",
+      startPaintingMsg: "🎨 Начинаю рисовать...",
+      paintingProgress: "🧱 Прогресс: {painted}/{total} пикселей...",
+      noCharges: "⌛ Нет зарядов. Ожидание {time}...",
+      paintingStopped: "⏹️ Рисование остановлено пользователем",
+      paintingComplete: "✅ Рисование завершено! Нарисовано {count} пикселей.",
+      paintingError: "❌ Ошибка во время рисования",
+      missingRequirements: "❌ Сначала загрузите изображение и выберите позицию",
+      progress: "Прогресс",
+      pixels: "Пиксели",
+      charges: "Заряды",
+      estimatedTime: "Примерное время",
+      initMessage: "Нажмите 'Запустить Авто-БОТа', чтобы начать",
+      waitingInit: "Ожидание инициализации...",
+      resizeSuccess: "✅ Размер изображения изменён на {width}x{height}",
+      paintingPaused: "⏸️ Рисование приостановлено на позиции X: {x}, Y: {y}",
+      captchaNeeded: "❗ Нужен токен CAPTCHA. Нарисуйте один пиксель вручную, чтобы продолжить.",
+      saveData: "Сохранить прогресс",
+      loadData: "Загрузить прогресс",
+      autoSaved: "✅ Прогресс сохранён автоматически",
+      dataLoaded: "✅ Прогресс успешно загружен",
+      noSavedData: "❌ Сохранённый прогресс не найден",
+      savedDataFound: "✅ Найден сохранённый прогресс! Загрузить для продолжения?",
+      savedDate: "Сохранено: {date}",
+      clickLoadToContinue: "Нажмите 'Загрузить прогресс', чтобы продолжить.",
+      exportData: "Экспорт прогресса",
+      importData: "Импорт прогресса",
+      exportSuccess: "✅ Данные прогресса скопированы в буфер обмена!",
+      exportError: "❌ Не удалось скопировать данные.",
+      importPrompt: "Вставьте данные вашего прогресса ниже:",
+      importSuccess: "✅ Прогресс успешно импортирован!",
+      importError: "❌ Неверные данные. Импорт не удался.",
+      importComplete: "Данные импортированы. Нажмите 'Загрузить прогресс', чтобы их применить.",
+      minimize: "Свернуть",
+      width: "Ширина",
+      height: "Высота",
+      keepAspect: "Сохранять пропорции",
+      apply: "Применить",
+      cancel: "Отмена",
+    },
     pt: {
       title: "WPlace Auto-Image",
       initBot: "Iniciar Auto-BOT",
@@ -57,13 +112,28 @@
       captchaNeeded:
         "❗ Token CAPTCHA necessário. Pinte um pixel manualmente para continuar.",
       saveData: "Salvar Progresso",
-      loadData: "Carregar Progresso", 
+      loadData: "Carregar Progresso",
       autoSaved: "✅ Progresso salvo automaticamente",
       dataLoaded: "✅ Progresso carregado com sucesso",
       noSavedData: "❌ Nenhum progresso salvo encontrado",
       savedDataFound: "✅ Progresso salvo encontrado! Carregar para continuar?",
       savedDate: "Salvo em: {date}",
       clickLoadToContinue: "Clique em 'Carregar Progresso' para continuar.",
+      exportData: "Exportar Progresso",
+      importData: "Importar Progresso",
+      exportSuccess: "✅ Dados de progresso copiados para a área de transferência!",
+      exportError: "❌ Não foi possível copiar os dados.",
+      importPrompt: "Cole os dados do seu progresso salvo abaixo:",
+      importSuccess: "✅ Dados de progresso importados com sucesso!",
+      importError: "❌ Dados inválidos. A importação falhou.",
+      importComplete: "Dados importados. Clique em 'Carregar Progresso' para aplicá-los.",
+      // UI strings
+      minimize: "Minimizar",
+      width: "Largura",
+      height: "Altura",
+      keepAspect: "Manter proporções",
+      apply: "Aplicar",
+      cancel: "Cancelar",
     },
     en: {
       title: "WPlace Auto-Image",
@@ -103,12 +173,27 @@
         "❗ CAPTCHA token needed. Paint one pixel manually to continue.",
       saveData: "Save Progress",
       loadData: "Load Progress",
-      autoSaved: "✅ Progress saved automatically", 
+      autoSaved: "✅ Progress saved automatically",
       dataLoaded: "✅ Progress loaded successfully",
       noSavedData: "❌ No saved progress found",
       savedDataFound: "✅ Saved progress found! Load to continue?",
       savedDate: "Saved on: {date}",
       clickLoadToContinue: "Click 'Load Progress' to continue.",
+      exportData: "Export Progress",
+      importData: "Import Progress",
+      exportSuccess: "✅ Progress data copied to clipboard!",
+      exportError: "❌ Could not copy data to clipboard.",
+      importPrompt: "Paste your saved progress data below:",
+      importSuccess: "✅ Progress data imported successfully!",
+      importError: "❌ Invalid data. Import failed.",
+      importComplete: "Data imported. Click 'Load Progress' to apply it.",
+      // UI strings
+      minimize: "Minimize",
+      width: "Width",
+      height: "Height",
+      keepAspect: "Keep aspect ratio",
+      apply: "Apply",
+      cancel: "Cancel",
     },
   };
 
@@ -175,13 +260,23 @@
     return originalFetch(url, options);
   };
 
+  // ОБНОВЛЕННАЯ ФУНКЦИЯ ОПРЕДЕЛЕНИЯ ЯЗЫКА
   async function detectLanguage() {
     try {
       const response = await fetch("https://ipapi.co/json/");
       const data = await response.json();
-      state.language = data.country === "BR" ? "pt" : "en";
+      const country = data.country_code;
+      const russianSpeakingCountries = ["RU", "BY", "KZ", "UA", "KG", "TJ"];
+
+      if (russianSpeakingCountries.includes(country)) {
+        state.language = "ru";
+      } else if (country === "BR") {
+        state.language = "pt";
+      } else {
+        state.language = "en";
+      }
     } catch {
-      state.language = "en";
+      state.language = "en"; // Fallback to English if API fails
     }
   }
 
@@ -232,10 +327,10 @@
       const days = Math.floor(ms / (1000 * 60 * 60 * 24));
 
       let result = "";
-      if (days > 0) result += `${days}d `;
-      if (hours > 0 || days > 0) result += `${hours}h `;
-      if (minutes > 0 || hours > 0 || days > 0) result += `${minutes}m `;
-      result += `${seconds}s`;
+      if (days > 0) result += `${days}д `;
+      if (hours > 0 || days > 0) result += `${hours}ч `;
+      if (minutes > 0 || hours > 0 || days > 0) result += `${minutes}м `;
+      result += `${seconds}с`;
 
       return result;
     },
@@ -260,7 +355,7 @@
             language: state.language
           }
         };
-        
+
         localStorage.setItem('wplace-auto-image-progress', JSON.stringify(progressData));
         console.log('✅ Progress saved successfully');
         return true;
@@ -276,14 +371,14 @@
         if (!savedData) {
           return null;
         }
-        
+
         const progressData = JSON.parse(savedData);
-        
+
         // Validate data structure
         if (!progressData.version || !progressData.state) {
           return null;
         }
-        
+
         return progressData;
       } catch (error) {
         console.error('❌ Error loading progress:', error);
@@ -294,7 +389,7 @@
     restoreProgress: (progressData) => {
       try {
         const savedState = progressData.state;
-        
+
         // Restore state
         state.imageLoaded = savedState.imageLoaded;
         state.totalPixels = savedState.totalPixels;
@@ -307,7 +402,7 @@
         state.availableColors = savedState.availableColors;
         state.language = savedState.language;
         state.colorsChecked = savedState.availableColors && savedState.availableColors.length > 0;
-        
+
         // Update UI to reflect restored state
         if (state.imageLoaded) {
           const initBotBtn = document.querySelector("#initBotBtn");
@@ -317,7 +412,7 @@
           const startBtn = document.querySelector("#startBtn");
           const saveBtn = document.querySelector("#saveBtn");
           const progressBar = document.querySelector("#progressBar");
-          
+
           // Show/hide appropriate buttons based on state
           if (state.colorsChecked) {
             initBotBtn.style.display = "none";
@@ -328,25 +423,25 @@
             uploadBtn.disabled = true;
             selectPosBtn.disabled = true;
           }
-          
+
           resizeBtn.disabled = false;
           saveBtn.disabled = false;
-          
+
           if (state.startPosition && state.region) {
             selectPosBtn.disabled = false;
             startBtn.disabled = false;
           }
-          
+
           // Update progress bar
           const progress = state.totalPixels > 0 ? Math.round((state.paintedPixels / state.totalPixels) * 100) : 0;
           progressBar.style.width = `${progress}%`;
-          
+
           // Update status message based on progress
           if (state.paintedPixels > 0) {
             if (state.lastPosition.x > 0 || state.lastPosition.y > 0) {
-              updateUI("paintingPaused", "warning", { 
-                x: state.lastPosition.x, 
-                y: state.lastPosition.y 
+              updateUI("paintingPaused", "warning", {
+                x: state.lastPosition.x,
+                y: state.lastPosition.y
               });
             } else {
               updateUI("paintingProgress", "default", {
@@ -358,7 +453,7 @@
             updateUI("imageLoaded", "success", { count: state.totalPixels });
           }
         }
-        
+
         // Update stats to show current progress
         updateStats();
         return true;
@@ -437,7 +532,7 @@
     },
 
     t: (key, params = {}) => {
-      let text = TEXTS[state.language][key] || TEXTS.en[key] || key;
+      let text = TEXTS[state.language]?.[key] || TEXTS.en[key] || key;
       for (const [k, v] of Object.entries(params)) {
         text = text.replace(`{${k}}`, v);
       }
@@ -853,6 +948,14 @@
             <i class="fas fa-folder-open"></i>
             <span>${Utils.t("loadData")}</span>
           </button>
+          <button id="exportBtn" class="wplace-btn wplace-btn-primary">
+            <i class="fas fa-file-export"></i>
+            <span>${Utils.t("exportData")}</span>
+          </button>
+          <button id="importBtn" class="wplace-btn wplace-btn-primary">
+            <i class="fas fa-file-import"></i>
+            <span>${Utils.t("importData")}</span>
+          </button>
         </div>
         
         <div class="wplace-progress">
@@ -961,6 +1064,8 @@
     const progressBar = container.querySelector("#progressBar");
     const statsArea = container.querySelector("#statsArea");
     const content = container.querySelector(".wplace-content");
+    const exportBtn = container.querySelector("#exportBtn");
+    const importBtn = container.querySelector("#importBtn");
 
     const widthSlider = resizeContainer.querySelector("#widthSlider");
     const heightSlider = resizeContainer.querySelector("#heightSlider");
@@ -1335,7 +1440,7 @@
       state.running = false;
       stopBtn.disabled = true;
       updateUI("paintingStopped", "warning");
-      
+
       // Auto save when stopping
       if (state.imageLoaded && state.paintedPixels > 0) {
         Utils.saveProgress();
@@ -1348,7 +1453,7 @@
         Utils.showAlert(Utils.t("missingRequirements"), "error");
         return;
       }
-      
+
       const success = Utils.saveProgress();
       if (success) {
         updateUI("autoSaved", "success");
@@ -1365,28 +1470,28 @@
         Utils.showAlert(Utils.t("noSavedData"), "warning");
         return;
       }
-      
+
       // Show confirmation dialog
       const confirmLoad = confirm(
         `${Utils.t("savedDataFound")}\n\n` +
         `Saved: ${new Date(savedData.timestamp).toLocaleString()}\n` +
         `Progress: ${savedData.state.paintedPixels}/${savedData.state.totalPixels} pixels`
       );
-      
+
       if (confirmLoad) {
         const success = Utils.restoreProgress(savedData);
         if (success) {
           updateUI("dataLoaded", "success");
           Utils.showAlert(Utils.t("dataLoaded"), "success");
-          
+
           // Enable appropriate buttons
           saveBtn.disabled = false;
-          
+
           // Show init button if colors not checked yet
           if (!state.colorsChecked) {
             initBotBtn.style.display = "block";
           }
-          
+
           if (state.imageLoaded && state.startPosition && state.region && state.colorsChecked) {
             startBtn.disabled = false;
           }
@@ -1395,24 +1500,59 @@
         }
       }
     });
-    
+
+    exportBtn.addEventListener("click", () => {
+        const savedDataString = localStorage.getItem('wplace-auto-image-progress');
+        if (savedDataString) {
+            navigator.clipboard.writeText(savedDataString).then(() => {
+                Utils.showAlert(Utils.t("exportSuccess"), "success");
+            }).catch(err => {
+                console.error('Failed to copy progress data: ', err);
+                Utils.showAlert(Utils.t("exportError"), "error");
+            });
+        } else {
+            Utils.showAlert(Utils.t("noSavedData"), "warning");
+        }
+    });
+
+    importBtn.addEventListener("click", () => {
+        const dataString = prompt(Utils.t("importPrompt"));
+        if (dataString) {
+            try {
+                // Проверяем, что это валидный JSON и имеет нужную структуру
+                const data = JSON.parse(dataString);
+                if (data && data.version && data.state) {
+                    localStorage.setItem('wplace-auto-image-progress', dataString);
+                    Utils.showAlert(Utils.t("importSuccess"), "success");
+                    updateUI("importComplete");
+                } else {
+                    throw new Error("Invalid data structure");
+                }
+            } catch (e) {
+                Utils.showAlert(Utils.t("importError"), "error");
+                console.error("Import failed:", e);
+            }
+        }
+    });
+
+
     // Check for saved progress on startup
     const checkSavedProgress = () => {
       const savedData = Utils.loadProgress();
       if (savedData && savedData.state.paintedPixels > 0) {
         const savedDate = new Date(savedData.timestamp).toLocaleString();
         const progress = Math.round((savedData.state.paintedPixels / savedData.state.totalPixels) * 100);
-        
+
         Utils.showAlert(
           `${Utils.t("savedDataFound")}\n\n` +
-          `Saved: ${savedDate}\n` +
+          `${Utils.t("savedDate", { date: savedDate })}\n` +
           `Progress: ${savedData.state.paintedPixels}/${savedData.state.totalPixels} pixels (${progress}%)\n` +
           `${Utils.t("clickLoadToContinue")}`,
           "info"
         );
       }
     };
-    
+
     // Check for saved progress after a short delay to let UI settle
     setTimeout(checkSavedProgress, 1000);
   }
@@ -1491,7 +1631,7 @@
                 painted: state.paintedPixels,
                 total: state.totalPixels,
               });
-              
+
               // Auto-save progress every 50 pixels
               if (state.paintedPixels % 50 === 0) {
                 Utils.saveProgress();
