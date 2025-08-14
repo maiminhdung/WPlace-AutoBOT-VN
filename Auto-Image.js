@@ -1,4 +1,4 @@
-(async () => {
+;(async () => {
   // CONFIGURATION CONSTANTS
   const CONFIG = {
     COOLDOWN_DEFAULT: 31000,
@@ -6,16 +6,19 @@
     WHITE_THRESHOLD: 250,
     LOG_INTERVAL: 10,
     THEME: {
-      primary: "#000000",
-      secondary: "#111111",
-      accent: "#222222",
-      text: "#ffffff",
-      highlight: "#775ce3",
-      success: "#00ff00",
-      error: "#ff0000",
-      warning: "#ffaa00",
+      primary: "#1a1a2e",
+      secondary: "#16213e",
+      accent: "#0f3460",
+      text: "#00ff41",
+      highlight: "#ff6b35",
+      success: "#39ff14",
+      error: "#ff073a",
+      warning: "#ffff00",
+      neon: "#00ffff",
+      purple: "#bf00ff",
+      pink: "#ff1493",
     },
-  };
+  }
 
   // BILINGUAL TEXT STRINGS
   const TEXTS = {
@@ -33,8 +36,7 @@
       loadingImage: "🖼️ Carregando imagem...",
       imageLoaded: "✅ Imagem carregada com {count} pixels válidos",
       imageError: "❌ Erro ao carregar imagem",
-      selectPositionAlert:
-        "Pinte o primeiro pixel na localização onde deseja que a arte comece!",
+      selectPositionAlert: "Pinte o primeiro pixel na localização onde deseja que a arte comece!",
       waitingPosition: "👆 Aguardando você pintar o pixel de referência...",
       positionSet: "✅ Posição definida com sucesso!",
       positionTimeout: "❌ Tempo esgotado para selecionar posição",
@@ -44,8 +46,7 @@
       paintingStopped: "⏹️ Pintura interrompida pelo usuário",
       paintingComplete: "✅ Pintura concluída! {count} pixels pintados.",
       paintingError: "❌ Erro durante a pintura",
-      missingRequirements:
-        "❌ Carregue uma imagem e selecione uma posição primeiro",
+      missingRequirements: "❌ Carregue uma imagem e selecione uma posição primeiro",
       progress: "Progresso",
       pixels: "Pixels",
       charges: "Cargas",
@@ -54,10 +55,9 @@
       waitingInit: "Aguardando inicialização...",
       resizeSuccess: "✅ Imagem redimensionada para {width}x{height}",
       paintingPaused: "⏸️ Pintura pausada na posição X: {x}, Y: {y}",
-      captchaNeeded:
-        "❗ Token CAPTCHA necessário. Pinte um pixel manualmente para continuar.",
+      captchaNeeded: "❗ Token CAPTCHA necessário. Pinte um pixel manualmente para continuar.",
       saveData: "Salvar Progresso",
-      loadData: "Carregar Progresso", 
+      loadData: "Carregar Progresso",
       autoSaved: "✅ Progresso salvo automaticamente",
       dataLoaded: "✅ Progresso carregado com sucesso",
       noSavedData: "❌ Nenhum progresso salvo encontrado",
@@ -79,8 +79,7 @@
       loadingImage: "🖼️ Loading image...",
       imageLoaded: "✅ Image loaded with {count} valid pixels",
       imageError: "❌ Error loading image",
-      selectPositionAlert:
-        "Paint the first pixel at the location where you want the art to start!",
+      selectPositionAlert: "Paint the first pixel at the location where you want the art to start!",
       waitingPosition: "👆 Waiting for you to paint the reference pixel...",
       positionSet: "✅ Position set successfully!",
       positionTimeout: "❌ Timeout for position selection",
@@ -99,18 +98,17 @@
       waitingInit: "Waiting for initialization...",
       resizeSuccess: "✅ Image resized to {width}x{height}",
       paintingPaused: "⏸️ Painting paused at position X: {x}, Y: {y}",
-      captchaNeeded:
-        "❗ CAPTCHA token needed. Paint one pixel manually to continue.",
+      captchaNeeded: "❗ CAPTCHA token needed. Paint one pixel manually to continue.",
       saveData: "Save Progress",
       loadData: "Load Progress",
-      autoSaved: "✅ Progress saved automatically", 
+      autoSaved: "✅ Progress saved automatically",
       dataLoaded: "✅ Progress loaded successfully",
       noSavedData: "❌ No saved progress found",
       savedDataFound: "✅ Saved progress found! Load to continue?",
       savedDate: "Saved on: {date}",
       clickLoadToContinue: "Click 'Load Progress' to continue.",
     },
-  };
+  }
 
   // GLOBAL STATE
   const state = {
@@ -132,39 +130,33 @@
     lastPosition: { x: 0, y: 0 },
     estimatedTime: 0,
     language: "en",
-  };
+  }
+
+  let updateUI, updateStats
 
   // Global variable to store the captured CAPTCHA token.
-  let capturedCaptchaToken = null;
+  let capturedCaptchaToken = null
 
   // Intercept the original window.fetch function to "listen" for network requests.
-  const originalFetch = window.fetch;
+  const originalFetch = window.fetch
   window.fetch = async (url, options) => {
     // Check if the request is for painting a pixel on wplace.
-    if (
-      typeof url === "string" &&
-      url.includes("https://backend.wplace.live/s0/pixel/")
-    ) {
+    if (typeof url === "string" && url.includes("https://backend.wplace.live/s0/pixel/")) {
       try {
-        const payload = JSON.parse(options.body);
+        const payload = JSON.parse(options.body)
         // If the request body contains the 't' field, it's our CAPTCHA token.
         if (payload.t) {
-          console.log("✅ CAPTCHA Token Captured:", payload.t);
+          console.log("✅ CAPTCHA Token Captured:", payload.t)
           // Store the token for our bot to use.
-          capturedCaptchaToken = payload.t;
+          capturedCaptchaToken = payload.t
           // Notify the user that the token is captured and they can start the bot.
-          if (
-            document
-              .querySelector("#statusText")
-              ?.textContent.includes("CAPTCHA")
-          ) {
-            Utils.showAlert(
-              "Token captured successfully! You can start the bot now.",
-              "success"
-            );
-            updateUI("colorsFound", "success", {
-              count: state.availableColors.length,
-            });
+          if (document.querySelector("#statusText")?.textContent.includes("CAPTCHA")) {
+            Utils.showAlert("Token captured successfully! You can start the bot now.", "success")
+            if (updateUI) {
+              updateUI("colorsFound", "success", {
+                count: state.availableColors.length,
+              })
+            }
           }
         }
       } catch (e) {
@@ -172,16 +164,16 @@
       }
     }
     // Finally, execute the original request, whether we inspected it or not.
-    return originalFetch(url, options);
-  };
+    return originalFetch(url, options)
+  }
 
   async function detectLanguage() {
     try {
-      const response = await fetch("https://ipapi.co/json/");
-      const data = await response.json();
-      state.language = data.country === "BR" ? "pt" : "en";
+      const response = await fetch("https://ipapi.co/json/")
+      const data = await response.json()
+      state.language = data.country === "BR" ? "pt" : "en"
     } catch {
-      state.language = "en";
+      state.language = "en"
     }
   }
 
@@ -189,55 +181,50 @@
   const Utils = {
     sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
 
-    colorDistance: (a, b) =>
-      Math.sqrt(
-        Math.pow(a[0] - b[0], 2) +
-          Math.pow(a[1] - b[1], 2) +
-          Math.pow(a[2] - b[2], 2)
-      ),
+    colorDistance: (a, b) => Math.sqrt(Math.pow(a[0] - b[0], 2) + Math.pow(a[1] - b[1], 2) + Math.pow(a[2] - b[2], 2)),
 
     createImageUploader: () =>
       new Promise((resolve) => {
-        const input = document.createElement("input");
-        input.type = "file";
-        input.accept = "image/png,image/jpeg";
+        const input = document.createElement("input")
+        input.type = "file"
+        input.accept = "image/png,image/jpeg"
         input.onchange = () => {
-          const fr = new FileReader();
-          fr.onload = () => resolve(fr.result);
-          fr.readAsDataURL(input.files[0]);
-        };
-        input.click();
+          const fr = new FileReader()
+          fr.onload = () => resolve(fr.result)
+          fr.readAsDataURL(input.files[0])
+        }
+        input.click()
       }),
 
     extractAvailableColors: () => {
-      const colorElements = document.querySelectorAll('[id^="color-"]');
+      const colorElements = document.querySelectorAll('[id^="color-"]')
       return Array.from(colorElements)
         .filter((el) => !el.querySelector("svg"))
         .filter((el) => {
-          const id = parseInt(el.id.replace("color-", ""));
-          return id !== 0 && id !== 5;
+          const id = Number.parseInt(el.id.replace("color-", ""))
+          return id !== 0 && id !== 5
         })
         .map((el) => {
-          const id = parseInt(el.id.replace("color-", ""));
-          const rgbStr = el.style.backgroundColor.match(/\d+/g);
-          const rgb = rgbStr ? rgbStr.map(Number) : [0, 0, 0];
-          return { id, rgb };
-        });
+          const id = Number.parseInt(el.id.replace("color-", ""))
+          const rgbStr = el.style.backgroundColor.match(/\d+/g)
+          const rgb = rgbStr ? rgbStr.map(Number) : [0, 0, 0]
+          return { id, rgb }
+        })
     },
 
     formatTime: (ms) => {
-      const seconds = Math.floor((ms / 1000) % 60);
-      const minutes = Math.floor((ms / (1000 * 60)) % 60);
-      const hours = Math.floor((ms / (1000 * 60 * 60)) % 24);
-      const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+      const seconds = Math.floor((ms / 1000) % 60)
+      const minutes = Math.floor((ms / (1000 * 60)) % 60)
+      const hours = Math.floor((ms / (1000 * 60 * 60)) % 24)
+      const days = Math.floor(ms / (1000 * 60 * 60 * 24))
 
-      let result = "";
-      if (days > 0) result += `${days}d `;
-      if (hours > 0 || days > 0) result += `${hours}h `;
-      if (minutes > 0 || hours > 0 || days > 0) result += `${minutes}m `;
-      result += `${seconds}s`;
+      let result = ""
+      if (days > 0) result += `${days}d `
+      if (hours > 0 || days > 0) result += `${hours}h `
+      if (minutes > 0 || hours > 0 || days > 0) result += `${minutes}m `
+      result += `${seconds}s`
 
-      return result;
+      return result
     },
 
     // Save/Load Progress Functions
@@ -257,193 +244,195 @@
             imageData: state.imageData,
             availableColors: state.availableColors,
             colorsChecked: state.colorsChecked,
-            language: state.language
-          }
-        };
-        
-        localStorage.setItem('wplace-auto-image-progress', JSON.stringify(progressData));
-        console.log('✅ Progress saved successfully');
-        return true;
+            language: state.language,
+          },
+        }
+
+        localStorage.setItem("wplace-auto-image-progress", JSON.stringify(progressData))
+        console.log("✅ Progress saved successfully")
+        return true
       } catch (error) {
-        console.error('❌ Error saving progress:', error);
-        return false;
+        console.error("❌ Error saving progress:", error)
+        return false
       }
     },
 
     loadProgress: () => {
       try {
-        const savedData = localStorage.getItem('wplace-auto-image-progress');
+        const savedData = localStorage.getItem("wplace-auto-image-progress")
         if (!savedData) {
-          return null;
+          return null
         }
-        
-        const progressData = JSON.parse(savedData);
-        
+
+        const progressData = JSON.parse(savedData)
+
         // Validate data structure
         if (!progressData.version || !progressData.state) {
-          return null;
+          return null
         }
-        
-        return progressData;
+
+        return progressData
       } catch (error) {
-        console.error('❌ Error loading progress:', error);
-        return null;
+        console.error("❌ Error loading progress:", error)
+        return null
       }
     },
 
     restoreProgress: (progressData) => {
       try {
-        const savedState = progressData.state;
-        
+        const savedState = progressData.state
+
         // Restore state
-        state.imageLoaded = savedState.imageLoaded;
-        state.totalPixels = savedState.totalPixels;
-        state.paintedPixels = savedState.paintedPixels;
-        state.lastPosition = savedState.lastPosition || { x: 0, y: 0 };
-        state.startPosition = savedState.startPosition;
-        state.region = savedState.region;
-        state.paintedMap = savedState.paintedMap;
-        state.imageData = savedState.imageData;
-        state.availableColors = savedState.availableColors;
-        state.language = savedState.language;
-        state.colorsChecked = savedState.availableColors && savedState.availableColors.length > 0;
-        
+        state.imageLoaded = savedState.imageLoaded
+        state.totalPixels = savedState.totalPixels
+        state.paintedPixels = savedState.paintedPixels
+        state.lastPosition = savedState.lastPosition || { x: 0, y: 0 }
+        state.startPosition = savedState.startPosition
+        state.region = savedState.region
+        state.paintedMap = savedState.paintedMap
+        state.imageData = savedState.imageData
+        state.availableColors = savedState.availableColors
+        state.language = savedState.language
+        state.colorsChecked = savedState.availableColors && savedState.availableColors.length > 0
+
         // Update UI to reflect restored state
         if (state.imageLoaded) {
-          const initBotBtn = document.querySelector("#initBotBtn");
-          const uploadBtn = document.querySelector("#uploadBtn");
-          const resizeBtn = document.querySelector("#resizeBtn");
-          const selectPosBtn = document.querySelector("#selectPosBtn");
-          const startBtn = document.querySelector("#startBtn");
-          const saveBtn = document.querySelector("#saveBtn");
-          const progressBar = document.querySelector("#progressBar");
-          
+          const initBotBtn = document.querySelector("#initBotBtn")
+          const uploadBtn = document.querySelector("#uploadBtn")
+          const resizeBtn = document.querySelector("#resizeBtn")
+          const selectPosBtn = document.querySelector("#selectPosBtn")
+          const startBtn = document.querySelector("#startBtn")
+          const saveBtn = document.querySelector("#saveBtn")
+          const progressBar = document.querySelector("#progressBar")
+
           // Show/hide appropriate buttons based on state
           if (state.colorsChecked) {
-            initBotBtn.style.display = "none";
-            uploadBtn.disabled = false;
-            selectPosBtn.disabled = false;
+            initBotBtn.style.display = "none"
+            uploadBtn.disabled = false
+            selectPosBtn.disabled = false
           } else {
-            initBotBtn.style.display = "block";
-            uploadBtn.disabled = true;
-            selectPosBtn.disabled = true;
+            initBotBtn.style.display = "block"
+            uploadBtn.disabled = true
+            selectPosBtn.disabled = true
           }
-          
-          resizeBtn.disabled = false;
-          saveBtn.disabled = false;
-          
+
+          resizeBtn.disabled = false
+          saveBtn.disabled = false
+
           if (state.startPosition && state.region) {
-            selectPosBtn.disabled = false;
-            startBtn.disabled = false;
+            selectPosBtn.disabled = false
+            startBtn.disabled = false
           }
-          
+
           // Update progress bar
-          const progress = state.totalPixels > 0 ? Math.round((state.paintedPixels / state.totalPixels) * 100) : 0;
-          progressBar.style.width = `${progress}%`;
-          
+          const progress = state.totalPixels > 0 ? Math.round((state.paintedPixels / state.totalPixels) * 100) : 0
+          progressBar.style.width = `${progress}%`
+
           // Update status message based on progress
           if (state.paintedPixels > 0) {
             if (state.lastPosition.x > 0 || state.lastPosition.y > 0) {
-              updateUI("paintingPaused", "warning", { 
-                x: state.lastPosition.x, 
-                y: state.lastPosition.y 
-              });
+              if (updateUI) {
+                updateUI("paintingPaused", "warning", {
+                  x: state.lastPosition.x,
+                  y: state.lastPosition.y,
+                })
+              }
             } else {
-              updateUI("paintingProgress", "default", {
-                painted: state.paintedPixels,
-                total: state.totalPixels,
-              });
+              if (updateUI) {
+                updateUI("paintingProgress", "default", {
+                  painted: state.paintedPixels,
+                  total: state.totalPixels,
+                })
+              }
             }
           } else {
-            updateUI("imageLoaded", "success", { count: state.totalPixels });
+            if (updateUI) {
+              updateUI("imageLoaded", "success", { count: state.totalPixels })
+            }
           }
         }
-        
+
         // Update stats to show current progress
-        updateStats();
-        return true;
+        if (updateStats) {
+          updateStats()
+        }
+        return true
       } catch (error) {
-        console.error('❌ Error restoring progress:', error);
-        return false;
+        console.error("❌ Error restoring progress:", error)
+        return false
       }
     },
 
     clearProgress: () => {
       try {
-        localStorage.removeItem('wplace-auto-image-progress');
-        console.log('✅ Progress data cleared');
-        return true;
+        localStorage.removeItem("wplace-auto-image-progress")
+        console.log("✅ Progress data cleared")
+        return true
       } catch (error) {
-        console.error('❌ Error clearing progress:', error);
-        return false;
+        console.error("❌ Error clearing progress:", error)
+        return false
       }
     },
 
     hasSavedProgress: () => {
-      return localStorage.getItem('wplace-auto-image-progress') !== null;
+      return localStorage.getItem("wplace-auto-image-progress") !== null
     },
 
     showAlert: (message, type = "info") => {
-      const alert = document.createElement("div");
-      alert.style.position = "fixed";
-      alert.style.top = "20px";
-      alert.style.left = "50%";
-      alert.style.transform = "translateX(-50%)";
-      alert.style.padding = "15px 20px";
-      alert.style.background = CONFIG.THEME[type] || CONFIG.THEME.accent;
-      alert.style.color = CONFIG.THEME.text;
-      alert.style.borderRadius = "5px";
-      alert.style.zIndex = "10000";
-      alert.style.boxShadow = "0 3px 10px rgba(0,0,0,0.3)";
-      alert.style.display = "flex";
-      alert.style.alignItems = "center";
-      alert.style.gap = "10px";
+      const alert = document.createElement("div")
+      alert.style.position = "fixed"
+      alert.style.top = "20px"
+      alert.style.left = "50%"
+      alert.style.transform = "translateX(-50%)"
+      alert.style.padding = "15px 20px"
+      alert.style.background = CONFIG.THEME[type] || CONFIG.THEME.accent
+      alert.style.color = CONFIG.THEME.text
+      alert.style.borderRadius = "5px"
+      alert.style.zIndex = "10000"
+      alert.style.boxShadow = "0 3px 10px rgba(0,0,0,0.3)"
+      alert.style.display = "flex"
+      alert.style.alignItems = "center"
+      alert.style.gap = "10px"
 
       const icons = {
         error: "exclamation-circle",
         success: "check-circle",
         warning: "exclamation-triangle",
         info: "info-circle",
-      };
+      }
 
       alert.innerHTML = `
         <i class="fas fa-${icons[type] || "info-circle"}"></i>
         <span>${message}</span>
-      `;
+      `
 
-      document.body.appendChild(alert);
+      document.body.appendChild(alert)
 
       setTimeout(() => {
-        alert.style.opacity = "0";
-        alert.style.transition = "opacity 0.5s";
-        setTimeout(() => alert.remove(), 500);
-      }, 3000);
+        alert.style.opacity = "0"
+        alert.style.transition = "opacity 0.5s"
+        setTimeout(() => alert.remove(), 500)
+      }, 3000)
     },
 
     calculateEstimatedTime: (remainingPixels, currentCharges, cooldown) => {
-      const pixelsPerCharge = currentCharges > 0 ? currentCharges : 0;
-      const fullCycles = Math.ceil(
-        (remainingPixels - pixelsPerCharge) / Math.max(currentCharges, 1)
-      );
-      return fullCycles * cooldown + (remainingPixels - 1) * 100;
+      const pixelsPerCharge = currentCharges > 0 ? currentCharges : 0
+      const fullCycles = Math.ceil((remainingPixels - pixelsPerCharge) / Math.max(currentCharges, 1))
+      return fullCycles * cooldown + (remainingPixels - 1) * 100
     },
 
     isWhitePixel: (r, g, b) => {
-      return (
-        r >= CONFIG.WHITE_THRESHOLD &&
-        g >= CONFIG.WHITE_THRESHOLD &&
-        b >= CONFIG.WHITE_THRESHOLD
-      );
+      return r >= CONFIG.WHITE_THRESHOLD && g >= CONFIG.WHITE_THRESHOLD && b >= CONFIG.WHITE_THRESHOLD
     },
 
     t: (key, params = {}) => {
-      let text = TEXTS[state.language][key] || TEXTS.en[key] || key;
+      let text = TEXTS[state.language][key] || TEXTS.en[key] || key
       for (const [k, v] of Object.entries(params)) {
-        text = text.replace(`{${k}}`, v);
+        text = text.replace(`{${k}}`, v)
       }
-      return text;
+      return text
     },
-  };
+  }
 
   // WPLACE API SERVICE
   const WPlaceService = {
@@ -454,31 +443,26 @@
           coords: [pixelX, pixelY],
           colors: [color],
           t: capturedCaptchaToken,
-        };
-        const res = await fetch(
-          `https://backend.wplace.live/s0/pixel/${regionX}/${regionY}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "text/plain;charset=UTF-8" },
-            credentials: "include",
-            body: JSON.stringify(payload),
-          }
-        );
+        }
+        const res = await fetch(`https://backend.wplace.live/s0/pixel/${regionX}/${regionY}`, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=UTF-8" },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        })
 
         // If we get a 403 Forbidden error, our token is likely expired.
         if (res.status === 403) {
-          console.error(
-            "❌ 403 Forbidden. CAPTCHA token might be invalid or expired."
-          );
-          capturedCaptchaToken = null; // Invalidate our stored token.
-          return "token_error"; // Return a special status to stop the bot.
+          console.error("❌ 403 Forbidden. CAPTCHA token might be invalid or expired.")
+          capturedCaptchaToken = null // Invalidate our stored token.
+          return "token_error" // Return a special status to stop the bot.
         }
 
-        const data = await res.json();
-        return data?.painted === 1;
+        const data = await res.json()
+        return data?.painted === 1
       } catch (e) {
-        console.error("Paint request failed:", e);
-        return false;
+        console.error("Paint request failed:", e)
+        return false
       }
     },
 
@@ -486,256 +470,428 @@
       try {
         const res = await fetch("https://backend.wplace.live/me", {
           credentials: "include",
-        });
-        const data = await res.json();
+        })
+        const data = await res.json()
         return {
           charges: data.charges?.count || 0,
           cooldown: data.charges?.cooldownMs || CONFIG.COOLDOWN_DEFAULT,
-        };
+        }
       } catch {
-        return { charges: 0, cooldown: CONFIG.COOLDOWN_DEFAULT };
+        return { charges: 0, cooldown: CONFIG.COOLDOWN_DEFAULT }
       }
     },
-  };
+  }
 
   class ImageProcessor {
     constructor(imageSrc) {
-      this.imageSrc = imageSrc;
-      this.img = new Image();
-      this.canvas = document.createElement("canvas");
-      this.ctx = this.canvas.getContext("2d");
-      this.previewCanvas = document.createElement("canvas");
-      this.previewCtx = this.previewCanvas.getContext("2d");
+      this.imageSrc = imageSrc
+      this.img = new Image()
+      this.canvas = document.createElement("canvas")
+      this.ctx = this.canvas.getContext("2d")
+      this.previewCanvas = document.createElement("canvas")
+      this.previewCtx = this.previewCanvas.getContext("2d")
     }
 
     async load() {
       return new Promise((resolve, reject) => {
         this.img.onload = () => {
-          this.canvas.width = this.img.width;
-          this.canvas.height = this.img.height;
-          this.ctx.drawImage(this.img, 0, 0);
-          resolve();
-        };
-        this.img.onerror = reject;
-        this.img.src = this.imageSrc;
-      });
+          this.canvas.width = this.img.width
+          this.canvas.height = this.img.height
+          this.ctx.drawImage(this.img, 0, 0)
+          resolve()
+        }
+        this.img.onerror = reject
+        this.img.src = this.imageSrc
+      })
     }
 
     getPixelData() {
-      return this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height)
-        .data;
+      return this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height).data
     }
 
     getDimensions() {
-      return { width: this.canvas.width, height: this.canvas.height };
+      return { width: this.canvas.width, height: this.canvas.height }
     }
 
     resize(newWidth, newHeight) {
-      const tempCanvas = document.createElement("canvas");
-      tempCanvas.width = newWidth;
-      tempCanvas.height = newHeight;
-      const tempCtx = tempCanvas.getContext("2d");
+      const tempCanvas = document.createElement("canvas")
+      tempCanvas.width = newWidth
+      tempCanvas.height = newHeight
+      const tempCtx = tempCanvas.getContext("2d")
 
-      tempCtx.drawImage(this.img, 0, 0, newWidth, newHeight);
+      tempCtx.drawImage(this.img, 0, 0, newWidth, newHeight)
 
-      this.canvas.width = newWidth;
-      this.canvas.height = newHeight;
-      this.ctx.drawImage(tempCanvas, 0, 0);
+      this.canvas.width = newWidth
+      this.canvas.height = newHeight
+      this.ctx.drawImage(tempCanvas, 0, 0)
 
-      return this.getPixelData();
+      return this.getPixelData()
     }
 
     generatePreview(newWidth, newHeight) {
-      this.previewCanvas.width = newWidth;
-      this.previewCanvas.height = newHeight;
-      this.previewCtx.imageSmoothingEnabled = false;
-      this.previewCtx.drawImage(this.img, 0, 0, newWidth, newHeight);
-      return this.previewCanvas.toDataURL();
+      this.previewCanvas.width = newWidth
+      this.previewCanvas.height = newHeight
+      this.previewCtx.imageSmoothingEnabled = false
+      this.previewCtx.drawImage(this.img, 0, 0, newWidth, newHeight)
+      return this.previewCanvas.toDataURL()
     }
   }
 
   function findClosestColor(rgb, palette) {
     return palette.reduce(
       (closest, current) => {
-        const currentDistance = Utils.colorDistance(rgb, current.rgb);
-        return currentDistance < closest.distance
-          ? { color: current, distance: currentDistance }
-          : closest;
+        const currentDistance = Utils.colorDistance(rgb, current.rgb)
+        return currentDistance < closest.distance ? { color: current, distance: currentDistance } : closest
       },
-      { color: palette[0], distance: Utils.colorDistance(rgb, palette[0].rgb) }
-    ).color.id;
+      { color: palette[0], distance: Utils.colorDistance(rgb, palette[0].rgb) },
+    ).color.id
   }
 
   async function createUI() {
-    await detectLanguage();
+    await detectLanguage()
 
-    const fontAwesome = document.createElement("link");
-    fontAwesome.rel = "stylesheet";
-    fontAwesome.href =
-      "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css";
-    document.head.appendChild(fontAwesome);
+    const fontAwesome = document.createElement("link")
+    fontAwesome.rel = "stylesheet"
+    fontAwesome.href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    document.head.appendChild(fontAwesome)
 
-    const style = document.createElement("style");
+    const style = document.createElement("style")
     style.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+      
       @keyframes pulse {
-        0% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.7); }
-        70% { box-shadow: 0 0 0 10px rgba(0, 255, 0, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0); }
+        0% { box-shadow: 0 0 0 0 rgba(0, 255, 65, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(0, 255, 65, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(0, 255, 65, 0); }
       }
       @keyframes slideIn {
         from { transform: translateY(20px); opacity: 0; }
         to { transform: translateY(0); opacity: 1; }
       }
+      @keyframes neonGlow {
+        0%, 100% { 
+          text-shadow: 0 0 5px currentColor, 0 0 10px currentColor, 0 0 15px currentColor;
+        }
+        50% { 
+          text-shadow: 0 0 2px currentColor, 0 0 5px currentColor, 0 0 8px currentColor;
+        }
+      }
+      @keyframes pixelBlink {
+        0%, 50% { opacity: 1; }
+        51%, 100% { opacity: 0.7; }
+      }
+      @keyframes scanline {
+        0% { transform: translateY(-100%); }
+        100% { transform: translateY(400px); }
+      }
+      
       #wplace-image-bot-container {
         position: fixed;
         top: 20px;
         right: 20px;
-        width: 300px;
+        width: 320px;
         background: ${CONFIG.THEME.primary};
-        border: 1px solid ${CONFIG.THEME.accent};
-        border-radius: 8px;
+        border: 3px solid ${CONFIG.THEME.text};
+        border-radius: 0;
         padding: 0;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-        z-index: 9998;
-        font-family: 'Segoe UI', Roboto, sans-serif;
+        box-shadow: 
+          0 0 20px rgba(0, 255, 65, 0.3),
+          inset 0 0 20px rgba(0, 255, 65, 0.1);
+        z-index: 999999;
+        font-family: 'Press Start 2P', monospace;
         color: ${CONFIG.THEME.text};
         animation: slideIn 0.4s ease-out;
         overflow: hidden;
+        image-rendering: pixelated;
       }
+      
+      #wplace-image-bot-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, ${CONFIG.THEME.neon}, transparent);
+        animation: scanline 3s linear infinite;
+        z-index: 1;
+        pointer-events: none;
+      }
+      
+      #wplace-image-bot-container::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+          repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(0, 255, 65, 0.03) 2px,
+            rgba(0, 255, 65, 0.03) 4px
+          );
+        pointer-events: none;
+        z-index: 1;
+      }
+      
       .wplace-header {
         padding: 12px 15px;
         background: ${CONFIG.THEME.secondary};
         color: ${CONFIG.THEME.highlight};
-        font-size: 16px;
-        font-weight: 600;
+        font-size: 10px;
+        font-weight: normal;
         display: flex;
         justify-content: space-between;
         align-items: center;
         cursor: move;
         user-select: none;
+        border-bottom: 2px solid ${CONFIG.THEME.text};
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        animation: neonGlow 2s ease-in-out infinite alternate;
+        position: relative;
+        z-index: 2;
       }
+      
       .wplace-header-title {
         display: flex;
         align-items: center;
         gap: 8px;
       }
+      
       .wplace-header-controls {
         display: flex;
         gap: 10px;
       }
+      
       .wplace-header-btn {
-        background: none;
-        border: none;
+        background: ${CONFIG.THEME.accent};
+        border: 2px solid ${CONFIG.THEME.text};
         color: ${CONFIG.THEME.text};
         cursor: pointer;
-        opacity: 0.7;
-        transition: opacity 0.2s;
+        padding: 4px 6px;
+        font-family: 'Press Start 2P', monospace;
+        font-size: 8px;
+        transition: all 0.1s;
+        image-rendering: pixelated;
       }
+      
       .wplace-header-btn:hover {
-        opacity: 1;
+        background: ${CONFIG.THEME.text};
+        color: ${CONFIG.THEME.primary};
+        box-shadow: 0 0 10px ${CONFIG.THEME.text};
       }
+      
       .wplace-content {
         padding: 15px;
         display: block;
+        position: relative;
+        z-index: 2;
       }
+      
       .wplace-controls {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 8px;
         margin-bottom: 15px;
       }
+      
       .wplace-btn {
-        padding: 10px;
-        border: none;
-        border-radius: 6px;
-        font-weight: 600;
+        padding: 12px 8px;
+        border: 2px solid;
+        border-radius: 0;
+        font-weight: normal;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 8px;
-        transition: all 0.2s;
+        transition: all 0.1s;
+        font-family: 'Press Start 2P', monospace;
+        font-size: 8px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        image-rendering: pixelated;
+        position: relative;
+        overflow: hidden;
       }
+      
+      .wplace-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.5s;
+      }
+      
+      .wplace-btn:hover::before {
+        left: 100%;
+      }
+      
       .wplace-btn:hover {
-        transform: translateY(-2px);
+        transform: none;
+        box-shadow: 0 0 15px currentColor;
+        animation: pixelBlink 0.5s infinite;
       }
+      
       .wplace-btn-primary {
         background: ${CONFIG.THEME.accent};
-        color: white;
+        color: ${CONFIG.THEME.text};
+        border-color: ${CONFIG.THEME.text};
       }
+      
       .wplace-btn-upload {
-        background: ${CONFIG.THEME.secondary};
-        color: white;
-        border: 1px dashed ${CONFIG.THEME.text};
+        background: ${CONFIG.THEME.purple};
+        color: ${CONFIG.THEME.text};
+        border-color: ${CONFIG.THEME.text};
+        border-style: dashed;
       }
+      
       .wplace-btn-start {
         background: ${CONFIG.THEME.success};
-        color: white;
+        color: ${CONFIG.THEME.primary};
+        border-color: ${CONFIG.THEME.success};
       }
+      
       .wplace-btn-stop {
         background: ${CONFIG.THEME.error};
-        color: white;
+        color: ${CONFIG.THEME.text};
+        border-color: ${CONFIG.THEME.error};
       }
+      
       .wplace-btn-select {
         background: ${CONFIG.THEME.highlight};
-        color: black;
+        color: ${CONFIG.THEME.primary};
+        border-color: ${CONFIG.THEME.highlight};
       }
+      
       .wplace-btn:disabled {
-        opacity: 0.5;
+        opacity: 0.3;
         cursor: not-allowed;
         transform: none !important;
+        animation: none !important;
+        box-shadow: none !important;
       }
+      
       .wplace-stats {
         background: ${CONFIG.THEME.secondary};
         padding: 12px;
-        border-radius: 6px;
+        border: 2px solid ${CONFIG.THEME.text};
+        border-radius: 0;
         margin-bottom: 15px;
+        box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.1);
       }
+      
       .wplace-stat-item {
         display: flex;
         justify-content: space-between;
         padding: 6px 0;
-        font-size: 14px;
+        font-size: 8px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
       }
+      
       .wplace-stat-label {
         display: flex;
         align-items: center;
         gap: 6px;
-        opacity: 0.8;
+        opacity: 0.9;
       }
+      
       .wplace-progress {
         width: 100%;
         background: ${CONFIG.THEME.secondary};
-        border-radius: 4px;
+        border: 2px solid ${CONFIG.THEME.text};
+        border-radius: 0;
         margin: 10px 0;
         overflow: hidden;
+        height: 16px;
+        position: relative;
       }
+      
+      .wplace-progress::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+          repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 2px,
+            rgba(0, 255, 65, 0.1) 2px,
+            rgba(0, 255, 65, 0.1) 4px
+          );
+        pointer-events: none;
+      }
+      
       .wplace-progress-bar {
-        height: 10px;
-        background: ${CONFIG.THEME.highlight};
+        height: 100%;
+        background: linear-gradient(90deg, ${CONFIG.THEME.success}, ${CONFIG.THEME.neon});
         transition: width 0.3s;
+        position: relative;
+        box-shadow: 0 0 10px ${CONFIG.THEME.success};
       }
+      
+      .wplace-progress-bar::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 4px;
+        height: 100%;
+        background: ${CONFIG.THEME.text};
+        animation: pixelBlink 1s infinite;
+      }
+      
       .wplace-status {
-        padding: 8px;
-        border-radius: 4px;
+        padding: 10px;
+        border: 2px solid;
+        border-radius: 0;
         text-align: center;
-        font-size: 13px;
+        font-size: 8px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        position: relative;
+        overflow: hidden;
       }
+      
       .status-default {
-        background: rgba(255,255,255,0.1);
+        background: ${CONFIG.THEME.accent};
+        border-color: ${CONFIG.THEME.text};
+        color: ${CONFIG.THEME.text};
       }
+      
       .status-success {
-        background: rgba(0, 255, 0, 0.1);
-        color: ${CONFIG.THEME.success};
+        background: ${CONFIG.THEME.success};
+        border-color: ${CONFIG.THEME.success};
+        color: ${CONFIG.THEME.primary};
+        box-shadow: 0 0 15px ${CONFIG.THEME.success};
       }
+      
       .status-error {
-        background: rgba(255, 0, 0, 0.1);
-        color: ${CONFIG.THEME.error};
+        background: ${CONFIG.THEME.error};
+        border-color: ${CONFIG.THEME.error};
+        color: ${CONFIG.THEME.text};
+        box-shadow: 0 0 15px ${CONFIG.THEME.error};
+        animation: pixelBlink 0.5s infinite;
       }
+      
       .status-warning {
-        background: rgba(255, 165, 0, 0.1);
-        color: orange;
+        background: ${CONFIG.THEME.warning};
+        border-color: ${CONFIG.THEME.warning};
+        color: ${CONFIG.THEME.primary};
+        box-shadow: 0 0 15px ${CONFIG.THEME.warning};
       }
+      
       #paintEffect {
         position: absolute;
         top: 0;
@@ -743,19 +899,25 @@
         width: 100%;
         height: 100%;
         pointer-events: none;
-        border-radius: 8px;
+        border-radius: 0;
       }
+      
       .position-info {
-        font-size: 13px;
+        font-size: 8px;
         margin-top: 5px;
-        padding: 5px;
+        padding: 8px;
         background: ${CONFIG.THEME.secondary};
-        border-radius: 4px;
+        border: 1px solid ${CONFIG.THEME.text};
+        border-radius: 0;
         text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 1px;
       }
+      
       .wplace-minimized .wplace-content {
         display: none;
       }
+      
       .resize-container {
         display: none;
         position: fixed;
@@ -764,47 +926,123 @@
         transform: translate(-50%, -50%);
         background: ${CONFIG.THEME.primary};
         padding: 20px;
-        border-radius: 8px;
+        border: 3px solid ${CONFIG.THEME.text};
+        border-radius: 0;
         z-index: 10000;
-        box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        box-shadow: 0 0 30px rgba(0, 255, 65, 0.5);
         max-width: 90%;
         max-height: 90%;
         overflow: auto;
+        font-family: 'Press Start 2P', monospace;
       }
+      
       .resize-preview {
         max-width: 100%;
         max-height: 300px;
         margin: 10px 0;
-        border: 1px solid ${CONFIG.THEME.accent};
+        border: 2px solid ${CONFIG.THEME.accent};
+        image-rendering: pixelated;
       }
+      
       .resize-controls {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 15px;
         margin-top: 15px;
       }
+      
+      .resize-controls label {
+        font-size: 8px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: ${CONFIG.THEME.text};
+      }
+      
       .resize-slider {
         width: 100%;
+        height: 8px;
+        background: ${CONFIG.THEME.secondary};
+        border: 2px solid ${CONFIG.THEME.text};
+        border-radius: 0;
+        outline: none;
+        -webkit-appearance: none;
       }
+      
+      .resize-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        background: ${CONFIG.THEME.highlight};
+        border: 2px solid ${CONFIG.THEME.text};
+        border-radius: 0;
+        cursor: pointer;
+        box-shadow: 0 0 5px ${CONFIG.THEME.highlight};
+      }
+      
+      .resize-slider::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        background: ${CONFIG.THEME.highlight};
+        border: 2px solid ${CONFIG.THEME.text};
+        border-radius: 0;
+        cursor: pointer;
+        box-shadow: 0 0 5px ${CONFIG.THEME.highlight};
+      }
+      
       .resize-buttons {
         display: flex;
         gap: 10px;
       }
+      
       .resize-overlay {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0,0,0,0.7);
+        background: rgba(0, 0, 0, 0.8);
         z-index: 9999;
         display: none;
       }
-    `;
-    document.head.appendChild(style);
+      
+      /* Retro checkbox styling */
+      input[type="checkbox"] {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border: 2px solid ${CONFIG.THEME.text};
+        background: ${CONFIG.THEME.secondary};
+        margin-right: 8px;
+        position: relative;
+        cursor: pointer;
+      }
+      
+      input[type="checkbox"]:checked {
+        background: ${CONFIG.THEME.success};
+      }
+      
+      input[type="checkbox"]:checked::after {
+        content: '✓';
+        position: absolute;
+        top: -2px;
+        left: 1px;
+        color: ${CONFIG.THEME.primary};
+        font-size: 12px;
+        font-weight: bold;
+      }
+      
+      /* Icon styling for retro feel */
+      .fas, .fa {
+        filter: drop-shadow(0 0 3px currentColor);
+      }
+    `
 
-    const container = document.createElement("div");
-    container.id = "wplace-image-bot-container";
+    document.head.appendChild(style)
+
+    const container = document.createElement("div")
+    container.id = "wplace-image-bot-container"
     container.innerHTML = `
       <div class="wplace-header">
         <div class="wplace-header-title">
@@ -812,9 +1050,7 @@
           <span>${Utils.t("title")}</span>
         </div>
         <div class="wplace-header-controls">
-          <button id="minimizeBtn" class="wplace-header-btn" title="${Utils.t(
-            "minimize"
-          )}">
+          <button id="minimizeBtn" class="wplace-header-btn" title="${Utils.t("minimize")}">
             <i class="fas fa-minus"></i>
           </button>
         </div>
@@ -862,9 +1098,7 @@
         <div class="wplace-stats">
           <div id="statsArea">
             <div class="wplace-stat-item">
-              <div class="wplace-stat-label"><i class="fas fa-info-circle"></i> ${Utils.t(
-                "initMessage"
-              )}</div>
+              <div class="wplace-stat-label"><i class="fas fa-info-circle"></i> ${Utils.t("initMessage")}</div>
             </div>
           </div>
         </div>
@@ -873,14 +1107,12 @@
           ${Utils.t("waitingInit")}
         </div>
       </div>
-    `;
+    `
 
-    const resizeContainer = document.createElement("div");
-    resizeContainer.className = "resize-container";
+    const resizeContainer = document.createElement("div")
+    resizeContainer.className = "resize-container"
     resizeContainer.innerHTML = `
-      <h3 style="margin-top: 0; color: ${CONFIG.THEME.text}">${Utils.t(
-      "resizeImage"
-    )}</h3>
+      <h3 style="margin-top: 0; color: ${CONFIG.THEME.text}">${Utils.t("resizeImage")}</h3>
       <div class="resize-controls">
         <label style="color: ${CONFIG.THEME.text}">
           ${Utils.t("width")}: <span id="widthValue">0</span>px
@@ -894,7 +1126,7 @@
           <input type="checkbox" id="keepAspect" checked>
           ${Utils.t("keepAspect")}
         </label>
-        <img id="resizePreview" class="resize-preview" src="">
+        <img id="resizePreview" class="resize-preview" src="/placeholder.svg">
         <div class="resize-buttons">
           <button id="confirmResize" class="wplace-btn wplace-btn-primary">
             <i class="fas fa-check"></i>
@@ -906,283 +1138,268 @@
           </button>
         </div>
       </div>
-    `;
+    `
 
-    const resizeOverlay = document.createElement("div");
-    resizeOverlay.className = "resize-overlay";
+    const resizeOverlay = document.createElement("div")
+    resizeOverlay.className = "resize-overlay"
 
-    document.body.appendChild(container);
-    document.body.appendChild(resizeOverlay);
-    document.body.appendChild(resizeContainer);
+    document.body.appendChild(container)
+    document.body.appendChild(resizeOverlay)
+    document.body.appendChild(resizeContainer)
 
-    const header = container.querySelector(".wplace-header");
+    const header = container.querySelector(".wplace-header")
     let pos1 = 0,
       pos2 = 0,
       pos3 = 0,
-      pos4 = 0;
+      pos4 = 0
 
-    header.onmousedown = dragMouseDown;
+    header.onmousedown = dragMouseDown
 
     function dragMouseDown(e) {
-      if (e.target.closest(".wplace-header-btn")) return;
+      if (e.target.closest(".wplace-header-btn")) return
 
-      e.preventDefault();
-      pos3 = e.clientX;
-      pos4 = e.clientY;
-      document.onmouseup = closeDragElement;
-      document.onmousemove = elementDrag;
+      e.preventDefault()
+      pos3 = e.clientX
+      pos4 = e.clientY
+      document.onmouseup = closeDragElement
+      document.onmousemove = elementDrag
     }
 
     function elementDrag(e) {
-      e.preventDefault();
-      pos1 = pos3 - e.clientX;
-      pos2 = pos4 - e.clientY;
-      pos3 = e.clientX;
-      pos4 = e.clientY;
-      container.style.top = container.offsetTop - pos2 + "px";
-      container.style.left = container.offsetLeft - pos1 + "px";
+      e.preventDefault()
+      pos1 = pos3 - e.clientX
+      pos2 = pos4 - e.clientY
+      pos3 = e.clientX
+      pos4 = e.clientY
+      container.style.top = container.offsetTop - pos2 + "px"
+      container.style.left = container.offsetLeft - pos1 + "px"
     }
 
     function closeDragElement() {
-      document.onmouseup = null;
-      document.onmousemove = null;
+      document.onmouseup = null
+      document.onmousemove = null
     }
 
-    const initBotBtn = container.querySelector("#initBotBtn");
-    const uploadBtn = container.querySelector("#uploadBtn");
-    const resizeBtn = container.querySelector("#resizeBtn");
-    const selectPosBtn = container.querySelector("#selectPosBtn");
-    const startBtn = container.querySelector("#startBtn");
-    const stopBtn = container.querySelector("#stopBtn");
-    const saveBtn = container.querySelector("#saveBtn");
-    const loadBtn = container.querySelector("#loadBtn");
-    const minimizeBtn = container.querySelector("#minimizeBtn");
-    const statusText = container.querySelector("#statusText");
-    const progressBar = container.querySelector("#progressBar");
-    const statsArea = container.querySelector("#statsArea");
-    const content = container.querySelector(".wplace-content");
+    const initBotBtn = container.querySelector("#initBotBtn")
+    const uploadBtn = container.querySelector("#uploadBtn")
+    const resizeBtn = container.querySelector("#resizeBtn")
+    const selectPosBtn = container.querySelector("#selectPosBtn")
+    const startBtn = container.querySelector("#startBtn")
+    const stopBtn = container.querySelector("#stopBtn")
+    const saveBtn = container.querySelector("#saveBtn")
+    const loadBtn = container.querySelector("#loadBtn")
+    const minimizeBtn = container.querySelector("#minimizeBtn")
+    const statusText = container.querySelector("#statusText")
+    const progressBar = container.querySelector("#progressBar")
+    const statsArea = container.querySelector("#statsArea")
+    const content = container.querySelector(".wplace-content")
 
-    const widthSlider = resizeContainer.querySelector("#widthSlider");
-    const heightSlider = resizeContainer.querySelector("#heightSlider");
-    const widthValue = resizeContainer.querySelector("#widthValue");
-    const heightValue = resizeContainer.querySelector("#heightValue");
-    const keepAspect = resizeContainer.querySelector("#keepAspect");
-    const resizePreview = resizeContainer.querySelector("#resizePreview");
-    const confirmResize = resizeContainer.querySelector("#confirmResize");
-    const cancelResize = resizeContainer.querySelector("#cancelResize");
+    const widthSlider = resizeContainer.querySelector("#widthSlider")
+    const heightSlider = resizeContainer.querySelector("#heightSlider")
+    const widthValue = resizeContainer.querySelector("#widthValue")
+    const heightValue = resizeContainer.querySelector("#heightValue")
+    const keepAspect = resizeContainer.querySelector("#keepAspect")
+    const resizePreview = resizeContainer.querySelector("#resizePreview")
+    const confirmResize = resizeContainer.querySelector("#confirmResize")
+    const cancelResize = resizeContainer.querySelector("#cancelResize")
 
     minimizeBtn.addEventListener("click", () => {
-      state.minimized = !state.minimized;
+      state.minimized = !state.minimized
       if (state.minimized) {
-        container.classList.add("wplace-minimized");
-        minimizeBtn.innerHTML = '<i class="fas fa-expand"></i>';
+        container.classList.add("wplace-minimized")
+        minimizeBtn.innerHTML = '<i class="fas fa-expand"></i>'
       } else {
-        container.classList.remove("wplace-minimized");
-        minimizeBtn.innerHTML = '<i class="fas fa-minus"></i>';
+        container.classList.remove("wplace-minimized")
+        minimizeBtn.innerHTML = '<i class="fas fa-minus"></i>'
       }
-    });
+    })
 
-    window.updateUI = (messageKey, type = "default", params = {}) => {
-      const message = Utils.t(messageKey, params);
-      statusText.textContent = message;
-      statusText.className = `wplace-status status-${type}`;
-      statusText.style.animation = "none";
-      void statusText.offsetWidth;
-      statusText.style.animation = "slideIn 0.3s ease-out";
-    };
+    updateUI = (messageKey, type = "default", params = {}) => {
+      const message = Utils.t(messageKey, params)
+      statusText.textContent = message
+      statusText.className = `wplace-status status-${type}`
+      statusText.style.animation = "none"
+      void statusText.offsetWidth
+      statusText.style.animation = "slideIn 0.3s ease-out"
+    }
 
-    window.updateStats = async () => {
-      if (!state.colorsChecked || !state.imageLoaded) return;
+    updateStats = async () => {
+      if (!state.colorsChecked || !state.imageLoaded) return
 
-      const { charges, cooldown } = await WPlaceService.getCharges();
-      state.currentCharges = Math.floor(charges);
-      state.cooldown = cooldown;
+      const { charges, cooldown } = await WPlaceService.getCharges()
+      state.currentCharges = Math.floor(charges)
+      state.cooldown = cooldown
 
-      const progress =
-        state.totalPixels > 0
-          ? Math.round((state.paintedPixels / state.totalPixels) * 100)
-          : 0;
-      const remainingPixels = state.totalPixels - state.paintedPixels;
+      const progress = state.totalPixels > 0 ? Math.round((state.paintedPixels / state.totalPixels) * 100) : 0
+      const remainingPixels = state.totalPixels - state.paintedPixels
 
-      state.estimatedTime = Utils.calculateEstimatedTime(
-        remainingPixels,
-        state.currentCharges,
-        state.cooldown
-      );
+      state.estimatedTime = Utils.calculateEstimatedTime(remainingPixels, state.currentCharges, state.cooldown)
 
-      progressBar.style.width = `${progress}%`;
+      progressBar.style.width = `${progress}%`
 
       statsArea.innerHTML = `
         <div class="wplace-stat-item">
-          <div class="wplace-stat-label"><i class="fas fa-image"></i> ${Utils.t(
-            "progress"
-          )}</div>
+          <div class="wplace-stat-label"><i class="fas fa-image"></i> ${Utils.t("progress")}</div>
           <div>${progress}%</div>
         </div>
         <div class="wplace-stat-item">
-          <div class="wplace-stat-label"><i class="fas fa-paint-brush"></i> ${Utils.t(
-            "pixels"
-          )}</div>
+          <div class="wplace-stat-label"><i class="fas fa-paint-brush"></i> ${Utils.t("pixels")}</div>
           <div>${state.paintedPixels}/${state.totalPixels}</div>
         </div>
         <div class="wplace-stat-item">
-          <div class="wplace-stat-label"><i class="fas fa-bolt"></i> ${Utils.t(
-            "charges"
-          )}</div>
+          <div class="wplace-stat-label"><i class="fas fa-bolt"></i> ${Utils.t("charges")}</div>
           <div>${Math.floor(state.currentCharges)}</div>
         </div>
         ${
           state.imageLoaded
             ? `
         <div class="wplace-stat-item">
-          <div class="wplace-stat-label"><i class="fas fa-clock"></i> ${Utils.t(
-            "estimatedTime"
-          )}</div>
+          <div class="wplace-stat-label"><i class="fas fa-clock"></i> ${Utils.t("estimatedTime")}</div>
           <div>${Utils.formatTime(state.estimatedTime)}</div>
         </div>
         `
             : ""
         }
-      `;
-    };
+      `
+    }
 
     function showResizeDialog(processor) {
-      const { width, height } = processor.getDimensions();
-      const aspectRatio = width / height;
+      const { width, height } = processor.getDimensions()
+      const aspectRatio = width / height
 
-      widthSlider.value = width;
-      heightSlider.value = height;
-      widthValue.textContent = width;
-      heightValue.textContent = height;
-      resizePreview.src = processor.img.src;
+      widthSlider.value = width
+      heightSlider.value = height
+      widthValue.textContent = width
+      heightValue.textContent = height
+      resizePreview.src = processor.img.src
 
-      resizeOverlay.style.display = "block";
-      resizeContainer.style.display = "block";
+      resizeOverlay.style.display = "block"
+      resizeContainer.style.display = "block"
 
       const updatePreview = () => {
-        const newWidth = parseInt(widthSlider.value);
-        const newHeight = parseInt(heightSlider.value);
+        const newWidth = Number.parseInt(widthSlider.value)
+        const newHeight = Number.parseInt(heightSlider.value)
 
-        widthValue.textContent = newWidth;
-        heightValue.textContent = newHeight;
+        widthValue.textContent = newWidth
+        heightValue.textContent = newHeight
 
-        resizePreview.src = processor.generatePreview(newWidth, newHeight);
-      };
+        resizePreview.src = processor.generatePreview(newWidth, newHeight)
+      }
 
       widthSlider.addEventListener("input", () => {
         if (keepAspect.checked) {
-          const newWidth = parseInt(widthSlider.value);
-          const newHeight = Math.round(newWidth / aspectRatio);
-          heightSlider.value = newHeight;
+          const newWidth = Number.parseInt(widthSlider.value)
+          const newHeight = Math.round(newWidth / aspectRatio)
+          heightSlider.value = newHeight
         }
-        updatePreview();
-      });
+        updatePreview()
+      })
 
       heightSlider.addEventListener("input", () => {
         if (keepAspect.checked) {
-          const newHeight = parseInt(heightSlider.value);
-          const newWidth = Math.round(newHeight * aspectRatio);
-          widthSlider.value = newWidth;
+          const newHeight = Number.parseInt(heightSlider.value)
+          const newWidth = Math.round(newHeight * aspectRatio)
+          widthSlider.value = newWidth
         }
-        updatePreview();
-      });
+        updatePreview()
+      })
 
       confirmResize.onclick = () => {
-        const newWidth = parseInt(widthSlider.value);
-        const newHeight = parseInt(heightSlider.value);
+        const newWidth = Number.parseInt(widthSlider.value)
+        const newHeight = Number.parseInt(heightSlider.value)
 
-        const newPixels = processor.resize(newWidth, newHeight);
+        const newPixels = processor.resize(newWidth, newHeight)
 
-        let totalValidPixels = 0;
+        let totalValidPixels = 0
         for (let y = 0; y < newHeight; y++) {
           for (let x = 0; x < newWidth; x++) {
-            const idx = (y * newWidth + x) * 4;
-            const r = newPixels[idx];
-            const g = newPixels[idx + 1];
-            const b = newPixels[idx + 2];
-            const alpha = newPixels[idx + 3];
+            const idx = (y * newWidth + x) * 4
+            const r = newPixels[idx]
+            const g = newPixels[idx + 1]
+            const b = newPixels[idx + 2]
+            const alpha = newPixels[idx + 3]
 
-            if (alpha < CONFIG.TRANSPARENCY_THRESHOLD) continue;
-            if (Utils.isWhitePixel(r, g, b)) continue;
+            if (alpha < CONFIG.TRANSPARENCY_THRESHOLD) continue
+            if (Utils.isWhitePixel(r, g, b)) continue
 
-            totalValidPixels++;
+            totalValidPixels++
           }
         }
 
-        state.imageData.pixels = newPixels;
-        state.imageData.width = newWidth;
-        state.imageData.height = newHeight;
-        state.imageData.totalPixels = totalValidPixels;
-        state.totalPixels = totalValidPixels;
-        state.paintedPixels = 0;
+        state.imageData.pixels = newPixels
+        state.imageData.width = newWidth
+        state.imageData.height = newHeight
+        state.imageData.totalPixels = totalValidPixels
+        state.totalPixels = totalValidPixels
+        state.paintedPixels = 0
 
-        updateStats();
+        updateStats()
         updateUI("resizeSuccess", "success", {
           width: newWidth,
           height: newHeight,
-        });
+        })
 
-        closeResizeDialog();
-      };
+        closeResizeDialog()
+      }
 
-      cancelResize.onclick = closeResizeDialog;
+      cancelResize.onclick = closeResizeDialog
     }
 
     function closeResizeDialog() {
-      resizeOverlay.style.display = "none";
-      resizeContainer.style.display = "none";
+      resizeOverlay.style.display = "none"
+      resizeContainer.style.display = "none"
     }
 
     initBotBtn.addEventListener("click", async () => {
       try {
-        updateUI("checkingColors", "default");
+        updateUI("checkingColors", "default")
 
-        state.availableColors = Utils.extractAvailableColors();
+        state.availableColors = Utils.extractAvailableColors()
 
         if (state.availableColors.length === 0) {
-          Utils.showAlert(Utils.t("noColorsFound"), "error");
-          updateUI("noColorsFound", "error");
-          return;
+          Utils.showAlert(Utils.t("noColorsFound"), "error")
+          updateUI("noColorsFound", "error")
+          return
         }
 
-        state.colorsChecked = true;
-        uploadBtn.disabled = false;
-        selectPosBtn.disabled = false;
-        initBotBtn.style.display = "none";
+        state.colorsChecked = true
+        uploadBtn.disabled = false
+        selectPosBtn.disabled = false
+        initBotBtn.style.display = "none"
 
         updateUI("colorsFound", "success", {
           count: state.availableColors.length,
-        });
-        updateStats();
+        })
+        updateStats()
       } catch {
-        updateUI("imageError", "error");
+        updateUI("imageError", "error")
       }
-    });
+    })
 
     uploadBtn.addEventListener("click", async () => {
       try {
-        updateUI("loadingImage", "default");
-        const imageSrc = await Utils.createImageUploader();
+        updateUI("loadingImage", "default")
+        const imageSrc = await Utils.createImageUploader()
 
-        const processor = new ImageProcessor(imageSrc);
-        await processor.load();
+        const processor = new ImageProcessor(imageSrc)
+        await processor.load()
 
-        const { width, height } = processor.getDimensions();
-        const pixels = processor.getPixelData();
+        const { width, height } = processor.getDimensions()
+        const pixels = processor.getPixelData()
 
-        let totalValidPixels = 0;
+        let totalValidPixels = 0
         for (let y = 0; y < height; y++) {
           for (let x = 0; x < width; x++) {
-            const idx = (y * width + x) * 4;
-            const r = pixels[idx];
-            const g = pixels[idx + 1];
-            const b = pixels[idx + 2];
-            const alpha = pixels[idx + 3];
+            const idx = (y * width + x) * 4
+            const r = pixels[idx]
+            const g = pixels[idx + 1]
+            const b = pixels[idx + 2]
+            const alpha = pixels[idx + 3]
 
-            if (alpha < CONFIG.TRANSPARENCY_THRESHOLD) continue;
-            if (Utils.isWhitePixel(r, g, b)) continue;
+            if (alpha < CONFIG.TRANSPARENCY_THRESHOLD) continue
+            if (Utils.isWhitePixel(r, g, b)) continue
 
-            totalValidPixels++;
+            totalValidPixels++
           }
         }
 
@@ -1192,45 +1409,45 @@
           pixels,
           totalPixels: totalValidPixels,
           processor,
-        };
-
-        state.totalPixels = totalValidPixels;
-        state.paintedPixels = 0;
-        state.imageLoaded = true;
-        state.lastPosition = { x: 0, y: 0 };
-
-        resizeBtn.disabled = false;
-        saveBtn.disabled = false;
-
-        if (state.startPosition) {
-          startBtn.disabled = false;
         }
 
-        updateStats();
-        updateUI("imageLoaded", "success", { count: totalValidPixels });
+        state.totalPixels = totalValidPixels
+        state.paintedPixels = 0
+        state.imageLoaded = true
+        state.lastPosition = { x: 0, y: 0 }
+
+        resizeBtn.disabled = false
+        saveBtn.disabled = false
+
+        if (state.startPosition) {
+          startBtn.disabled = false
+        }
+
+        updateStats()
+        updateUI("imageLoaded", "success", { count: totalValidPixels })
       } catch {
-        updateUI("imageError", "error");
+        updateUI("imageError", "error")
       }
-    });
+    })
 
     resizeBtn.addEventListener("click", () => {
       if (state.imageLoaded && state.imageData.processor) {
-        showResizeDialog(state.imageData.processor);
+        showResizeDialog(state.imageData.processor)
       }
-    });
+    })
 
     selectPosBtn.addEventListener("click", async () => {
-      if (state.selectingPosition) return;
+      if (state.selectingPosition) return
 
-      state.selectingPosition = true;
-      state.startPosition = null;
-      state.region = null;
-      startBtn.disabled = true;
+      state.selectingPosition = true
+      state.startPosition = null
+      state.region = null
+      startBtn.disabled = true
 
-      Utils.showAlert(Utils.t("selectPositionAlert"), "info");
-      updateUI("waitingPosition", "default");
+      Utils.showAlert(Utils.t("selectPositionAlert"), "info")
+      updateUI("waitingPosition", "default")
 
-      const originalFetch = window.fetch;
+      const originalFetch = window.fetch
 
       window.fetch = async (url, options) => {
         if (
@@ -1239,227 +1456,227 @@
           options?.method?.toUpperCase() === "POST"
         ) {
           try {
-            const response = await originalFetch(url, options);
-            const clonedResponse = response.clone();
-            const data = await clonedResponse.json();
+            const response = await originalFetch(url, options)
+            const clonedResponse = response.clone()
+            const data = await clonedResponse.json()
 
             if (data?.painted === 1) {
-              const regionMatch = url.match(/\/pixel\/(\d+)\/(\d+)/);
+              const regionMatch = url.match(/\/pixel\/(\d+)\/(\d+)/)
               if (regionMatch && regionMatch.length >= 3) {
                 state.region = {
-                  x: parseInt(regionMatch[1]),
-                  y: parseInt(regionMatch[2]),
-                };
+                  x: Number.parseInt(regionMatch[1]),
+                  y: Number.parseInt(regionMatch[2]),
+                }
               }
 
-              const payload = JSON.parse(options.body);
+              const payload = JSON.parse(options.body)
               if (payload?.coords && Array.isArray(payload.coords)) {
                 state.startPosition = {
                   x: payload.coords[0],
                   y: payload.coords[1],
-                };
-                state.lastPosition = { x: 0, y: 0 };
+                }
+                state.lastPosition = { x: 0, y: 0 }
 
                 if (state.imageLoaded) {
-                  startBtn.disabled = false;
+                  startBtn.disabled = false
                 }
 
-                window.fetch = originalFetch;
-                state.selectingPosition = false;
-                updateUI("positionSet", "success");
+                window.fetch = originalFetch
+                state.selectingPosition = false
+                updateUI("positionSet", "success")
               }
             }
 
-            return response;
+            return response
           } catch {
-            return originalFetch(url, options);
+            return originalFetch(url, options)
           }
         }
-        return originalFetch(url, options);
-      };
+        return originalFetch(url, options)
+      }
 
       setTimeout(() => {
         if (state.selectingPosition) {
-          window.fetch = originalFetch;
-          state.selectingPosition = false;
-          updateUI("positionTimeout", "error");
-          Utils.showAlert(Utils.t("positionTimeout"), "error");
+          window.fetch = originalFetch
+          state.selectingPosition = false
+          updateUI("positionTimeout", "error")
+          Utils.showAlert(Utils.t("positionTimeout"), "error")
         }
-      }, 120000);
-    });
+      }, 120000)
+    })
 
     startBtn.addEventListener("click", async () => {
       if (!state.imageLoaded || !state.startPosition || !state.region) {
-        updateUI("missingRequirements", "error");
-        return;
+        updateUI("missingRequirements", "error")
+        return
       }
       if (!capturedCaptchaToken) {
-        updateUI("captchaNeeded", "error");
-        Utils.showAlert(Utils.t("captchaNeeded"), "error");
-        return;
+        updateUI("captchaNeeded", "error")
+        Utils.showAlert(Utils.t("captchaNeeded"), "error")
+        return
       }
 
-      state.running = true;
-      state.stopFlag = false;
-      startBtn.disabled = true;
-      stopBtn.disabled = false;
-      uploadBtn.disabled = true;
-      selectPosBtn.disabled = true;
-      resizeBtn.disabled = true;
-      saveBtn.disabled = true;
+      state.running = true
+      state.stopFlag = false
+      startBtn.disabled = true
+      stopBtn.disabled = false
+      uploadBtn.disabled = true
+      selectPosBtn.disabled = true
+      resizeBtn.disabled = true
+      saveBtn.disabled = true
 
-      updateUI("startPaintingMsg", "success");
+      updateUI("startPaintingMsg", "success")
 
       try {
-        await processImage();
+        await processImage()
       } catch {
-        updateUI("paintingError", "error");
+        updateUI("paintingError", "error")
       } finally {
-        state.running = false;
-        stopBtn.disabled = true;
-        saveBtn.disabled = false;
+        state.running = false
+        stopBtn.disabled = true
+        saveBtn.disabled = false
 
         if (!state.stopFlag) {
-          startBtn.disabled = true;
-          uploadBtn.disabled = false;
-          selectPosBtn.disabled = false;
-          resizeBtn.disabled = false;
+          startBtn.disabled = true
+          uploadBtn.disabled = false
+          selectPosBtn.disabled = false
+          resizeBtn.disabled = false
         } else {
-          startBtn.disabled = false;
+          startBtn.disabled = false
         }
       }
-    });
+    })
 
     stopBtn.addEventListener("click", () => {
-      state.stopFlag = true;
-      state.running = false;
-      stopBtn.disabled = true;
-      updateUI("paintingStopped", "warning");
-      
+      state.stopFlag = true
+      state.running = false
+      stopBtn.disabled = true
+      updateUI("paintingStopped", "warning")
+
       // Auto save when stopping
       if (state.imageLoaded && state.paintedPixels > 0) {
-        Utils.saveProgress();
-        Utils.showAlert(Utils.t("autoSaved"), "success");
+        Utils.saveProgress()
+        Utils.showAlert(Utils.t("autoSaved"), "success")
       }
-    });
+    })
 
     saveBtn.addEventListener("click", () => {
       if (!state.imageLoaded) {
-        Utils.showAlert(Utils.t("missingRequirements"), "error");
-        return;
+        Utils.showAlert(Utils.t("missingRequirements"), "error")
+        return
       }
-      
-      const success = Utils.saveProgress();
+
+      const success = Utils.saveProgress()
       if (success) {
-        updateUI("autoSaved", "success");
-        Utils.showAlert(Utils.t("autoSaved"), "success");
+        updateUI("autoSaved", "success")
+        Utils.showAlert(Utils.t("autoSaved"), "success")
       } else {
-        Utils.showAlert("❌ Erro ao salvar progresso", "error");
+        Utils.showAlert("❌ Erro ao salvar progresso", "error")
       }
-    });
+    })
 
     loadBtn.addEventListener("click", () => {
-      const savedData = Utils.loadProgress();
+      const savedData = Utils.loadProgress()
       if (!savedData) {
-        updateUI("noSavedData", "warning");
-        Utils.showAlert(Utils.t("noSavedData"), "warning");
-        return;
+        updateUI("noSavedData", "warning")
+        Utils.showAlert(Utils.t("noSavedData"), "warning")
+        return
       }
-      
+
       // Show confirmation dialog
       const confirmLoad = confirm(
         `${Utils.t("savedDataFound")}\n\n` +
-        `Saved: ${new Date(savedData.timestamp).toLocaleString()}\n` +
-        `Progress: ${savedData.state.paintedPixels}/${savedData.state.totalPixels} pixels`
-      );
-      
+          `Saved: ${new Date(savedData.timestamp).toLocaleString()}\n` +
+          `Progress: ${savedData.state.paintedPixels}/${savedData.state.totalPixels} pixels`,
+      )
+
       if (confirmLoad) {
-        const success = Utils.restoreProgress(savedData);
+        const success = Utils.restoreProgress(savedData)
         if (success) {
-          updateUI("dataLoaded", "success");
-          Utils.showAlert(Utils.t("dataLoaded"), "success");
-          
+          updateUI("dataLoaded", "success")
+          Utils.showAlert(Utils.t("dataLoaded"), "success")
+
           // Enable appropriate buttons
-          saveBtn.disabled = false;
-          
+          saveBtn.disabled = false
+
           // Show init button if colors not checked yet
           if (!state.colorsChecked) {
-            initBotBtn.style.display = "block";
+            initBotBtn.style.display = "block"
           }
-          
+
           if (state.imageLoaded && state.startPosition && state.region && state.colorsChecked) {
-            startBtn.disabled = false;
+            startBtn.disabled = false
           }
         } else {
-          Utils.showAlert("❌ Erro ao carregar progresso", "error");
+          Utils.showAlert("❌ Erro ao carregar progresso", "error")
         }
       }
-    });
-    
+    })
+
     // Check for saved progress on startup
     const checkSavedProgress = () => {
-      const savedData = Utils.loadProgress();
+      const savedData = Utils.loadProgress()
       if (savedData && savedData.state.paintedPixels > 0) {
-        const savedDate = new Date(savedData.timestamp).toLocaleString();
-        const progress = Math.round((savedData.state.paintedPixels / savedData.state.totalPixels) * 100);
-        
+        const savedDate = new Date(savedData.timestamp).toLocaleString()
+        const progress = Math.round((savedData.state.paintedPixels / savedData.state.totalPixels) * 100)
+
         Utils.showAlert(
           `${Utils.t("savedDataFound")}\n\n` +
-          `Saved: ${savedDate}\n` +
-          `Progress: ${savedData.state.paintedPixels}/${savedData.state.totalPixels} pixels (${progress}%)\n` +
-          `${Utils.t("clickLoadToContinue")}`,
-          "info"
-        );
+            `Saved: ${savedDate}\n` +
+            `Progress: ${savedData.state.paintedPixels}/${savedData.state.totalPixels} pixels (${progress}%)\n` +
+            `${Utils.t("clickLoadToContinue")}`,
+          "info",
+        )
       }
-    };
-    
+    }
+
     // Check for saved progress after a short delay to let UI settle
-    setTimeout(checkSavedProgress, 1000);
+    setTimeout(checkSavedProgress, 1000)
   }
 
   async function processImage() {
-    const { width, height, pixels } = state.imageData;
-    const { x: startX, y: startY } = state.startPosition;
-    const { x: regionX, y: regionY } = state.region;
+    const { width, height, pixels } = state.imageData
+    const { x: startX, y: startY } = state.startPosition
+    const { x: regionX, y: regionY } = state.region
 
-    let startRow = state.lastPosition.y || 0;
-    let startCol = state.lastPosition.x || 0;
+    const startRow = state.lastPosition.y || 0
+    const startCol = state.lastPosition.x || 0
 
     if (!state.paintedMap) {
       state.paintedMap = Array(height)
         .fill()
-        .map(() => Array(width).fill(false));
+        .map(() => Array(width).fill(false))
     }
 
-    let pixelBatch = [];
+    let pixelBatch = []
 
     try {
       outerLoop: for (let y = startRow; y < height; y++) {
         for (let x = y === startRow ? startCol : 0; x < width; x++) {
           if (state.stopFlag) {
             if (pixelBatch.length > 0) {
-              await sendPixelBatch(pixelBatch, regionX, regionY);
+              await sendPixelBatch(pixelBatch, regionX, regionY)
             }
-            state.lastPosition = { x, y };
-            updateUI("paintingPaused", "warning", { x, y });
-            break outerLoop;
+            state.lastPosition = { x, y }
+            updateUI("paintingPaused", "warning", { x, y })
+            break outerLoop
           }
 
-          if (state.paintedMap[y][x]) continue;
+          if (state.paintedMap[y][x]) continue
 
-          const idx = (y * width + x) * 4;
-          const r = pixels[idx];
-          const g = pixels[idx + 1];
-          const b = pixels[idx + 2];
-          const alpha = pixels[idx + 3];
+          const idx = (y * width + x) * 4
+          const r = pixels[idx]
+          const g = pixels[idx + 1]
+          const b = pixels[idx + 2]
+          const alpha = pixels[idx + 3]
 
-          if (alpha < CONFIG.TRANSPARENCY_THRESHOLD) continue;
-          if (Utils.isWhitePixel(r, g, b)) continue;
+          if (alpha < CONFIG.TRANSPARENCY_THRESHOLD) continue
+          if (Utils.isWhitePixel(r, g, b)) continue
 
-          const rgb = [r, g, b];
-          const colorId = findClosestColor(rgb, state.availableColors);
-          const pixelX = startX + x;
-          const pixelY = startY + y;
+          const rgb = [r, g, b]
+          const colorId = findClosestColor(rgb, state.availableColors)
+          const pixelX = startX + x
+          const pixelY = startY + y
 
           pixelBatch.push({
             x: pixelX,
@@ -1467,128 +1684,123 @@
             color: colorId,
             localX: x,
             localY: y,
-          });
+          })
 
           if (pixelBatch.length >= Math.floor(state.currentCharges)) {
-            const success = await sendPixelBatch(pixelBatch, regionX, regionY);
+            const success = await sendPixelBatch(pixelBatch, regionX, regionY)
 
             if (success === "token_error") {
-              state.stopFlag = true;
-              updateUI("captchaNeeded", "error");
-              Utils.showAlert(Utils.t("captchaNeeded"), "error");
-              break outerLoop;
+              state.stopFlag = true
+              updateUI("captchaNeeded", "error")
+              Utils.showAlert(Utils.t("captchaNeeded"), "error")
+              break outerLoop
             }
 
             if (success) {
               pixelBatch.forEach((pixel) => {
-                state.paintedMap[pixel.localY][pixel.localX] = true;
-                state.paintedPixels++;
-              });
+                state.paintedMap[pixel.localY][pixel.localX] = true
+                state.paintedPixels++
+              })
 
-              state.currentCharges -= pixelBatch.length;
-              updateStats();
+              state.currentCharges -= pixelBatch.length
+              updateStats()
               updateUI("paintingProgress", "default", {
                 painted: state.paintedPixels,
                 total: state.totalPixels,
-              });
-              
+              })
+
               // Auto-save progress every 50 pixels
               if (state.paintedPixels % 50 === 0) {
-                Utils.saveProgress();
+                Utils.saveProgress()
               }
             }
 
-            pixelBatch = [];
+            pixelBatch = []
 
             if (state.currentCharges < 1) {
               updateUI("noCharges", "warning", {
                 time: Utils.formatTime(state.cooldown),
-              });
-              await Utils.sleep(state.cooldown);
+              })
+              await Utils.sleep(state.cooldown)
 
-              const chargeUpdate = await WPlaceService.getCharges();
-              state.currentCharges = chargeUpdate.charges;
-              state.cooldown = chargeUpdate.cooldown;
+              const chargeUpdate = await WPlaceService.getCharges()
+              state.currentCharges = chargeUpdate.charges
+              state.cooldown = chargeUpdate.cooldown
             }
           }
         }
       }
 
       if (pixelBatch.length > 0 && !state.stopFlag) {
-        const success = await sendPixelBatch(pixelBatch, regionX, regionY);
+        const success = await sendPixelBatch(pixelBatch, regionX, regionY)
         if (success) {
           pixelBatch.forEach((pixel) => {
-            state.paintedMap[pixel.localY][pixel.localX] = true;
-            state.paintedPixels++;
-          });
-          state.currentCharges -= pixelBatch.length;
+            state.paintedMap[pixel.localY][pixel.localX] = true
+            state.paintedPixels++
+          })
+          state.currentCharges -= pixelBatch.length
         }
       }
     } finally {
-      if (window._chargesInterval) clearInterval(window._chargesInterval);
-      window._chargesInterval = null;
+      if (window._chargesInterval) clearInterval(window._chargesInterval)
+      window._chargesInterval = null
     }
 
     if (state.stopFlag) {
-      updateUI("paintingStopped", "warning");
+      updateUI("paintingStopped", "warning")
       // Save progress when stopped
-      Utils.saveProgress();
+      Utils.saveProgress()
     } else {
-      updateUI("paintingComplete", "success", { count: state.paintedPixels });
-      state.lastPosition = { x: 0, y: 0 };
-      state.paintedMap = null;
+      updateUI("paintingComplete", "success", { count: state.paintedPixels })
+      state.lastPosition = { x: 0, y: 0 }
+      state.paintedMap = null
       // Clear saved data when completed
-      Utils.clearProgress();
+      Utils.clearProgress()
     }
 
-    updateStats();
+    updateStats()
   }
 
   async function sendPixelBatch(pixelBatch, regionX, regionY) {
     if (!capturedCaptchaToken) {
-      return "token_error";
+      return "token_error"
     }
 
-    const coords = [];
-    const colors = [];
+    const coords = []
+    const colors = []
 
     pixelBatch.forEach((pixel) => {
-      coords.push(pixel.x, pixel.y);
-      colors.push(pixel.color);
-    });
+      coords.push(pixel.x, pixel.y)
+      colors.push(pixel.color)
+    })
 
     try {
       const payload = {
         coords: coords,
         colors: colors,
         t: capturedCaptchaToken,
-      };
-
-      const res = await fetch(
-        `https://backend.wplace.live/s0/pixel/${regionX}/${regionY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "text/plain;charset=UTF-8" },
-          credentials: "include",
-          body: JSON.stringify(payload),
-        }
-      );
-
-      if (res.status === 403) {
-        console.error(
-          "❌ 403 Forbidden. CAPTCHA token might be invalid or expired."
-        );
-        capturedCaptchaToken = null;
-        return "token_error";
       }
 
-      const data = await res.json();
-      return data?.painted === pixelBatch.length;
+      const res = await fetch(`https://backend.wplace.live/s0/pixel/${regionX}/${regionY}`, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=UTF-8" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      })
+
+      if (res.status === 403) {
+        console.error("❌ 403 Forbidden. CAPTCHA token might be invalid or expired.")
+        capturedCaptchaToken = null
+        return "token_error"
+      }
+
+      const data = await res.json()
+      return data?.painted === pixelBatch.length
     } catch (e) {
-      console.error("Batch paint request failed:", e);
-      return false;
+      console.error("Batch paint request failed:", e)
+      return false
     }
   }
 
-  createUI();
-})();
+  createUI()
+})()
