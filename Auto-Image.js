@@ -10,17 +10,15 @@
       MAX: 1000,       // Maximum 1000 pixels batch size
       DEFAULT: 5,      // Default 5 pixels batch size
     },
+    BATCH_MODE: "normal", // "normal" or "random" - default to normal
+    RANDOM_BATCH_RANGE: {
+      MIN: 3,          // Random range minimum
+      MAX: 20,         // Random range maximum
+    },
     PAINTING_SPEED_ENABLED: false, // Off by default
     AUTO_CAPTCHA_ENABLED: true, // Turnstile generator enabled by default
     TOKEN_SOURCE: "generator", // "generator", "manual", or "hybrid" - default to generator
     COOLDOWN_CHARGE_THRESHOLD: 1, // Default wait threshold
-    // Desktop Notifications (defaults)
-    NOTIFICATIONS: {
-        ENABLED: true,
-        ON_CHARGES_REACHED: true,
-        ONLY_WHEN_UNFOCUSED: true,
-        REPEAT_MINUTES: 5, // repeat reminder while threshold condition holds
-    },
     OVERLAY: {
       OPACITY_DEFAULT: 0.6,
       BLUE_MARBLE_DEFAULT: false,
@@ -1059,6 +1057,9 @@
     estimatedTime: 0,
     language: "en",
     paintingSpeed: CONFIG.PAINTING_SPEED.DEFAULT, // pixels batch size
+    batchMode: CONFIG.BATCH_MODE, // "normal" or "random"
+    randomBatchMin: CONFIG.RANDOM_BATCH_RANGE.MIN, // Random range minimum
+    randomBatchMax: CONFIG.RANDOM_BATCH_RANGE.MAX, // Random range maximum
     cooldownChargeThreshold: CONFIG.COOLDOWN_CHARGE_THRESHOLD,
     tokenSource: CONFIG.TOKEN_SOURCE, // "generator" or "manual"
     overlayOpacity: CONFIG.OVERLAY.OPACITY_DEFAULT,
@@ -1073,13 +1074,6 @@
   resizeSettings: null,
   originalImage: null,
   resizeIgnoreMask: null,
-  // Notification prefs and runtime bookkeeping
-  notificationsEnabled: CONFIG.NOTIFICATIONS.ENABLED,
-  notifyOnChargesReached: CONFIG.NOTIFICATIONS.ON_CHARGES_REACHED,
-  notifyOnlyWhenUnfocused: CONFIG.NOTIFICATIONS.ONLY_WHEN_UNFOCUSED,
-  notificationIntervalMinutes: CONFIG.NOTIFICATIONS.REPEAT_MINUTES,
-  _lastChargesNotifyAt: 0,
-  _lastChargesBelow: true,
   }
 
   let _updateResizePreview = () => { };
@@ -2584,100 +2578,6 @@
       }
     },
   }
-
-  // Desktop Notification Manager
-  const NotificationManager = {
-      pollTimer: null,
-      pollIntervalMs: 60_000,
-      icon() {
-          const link = document.querySelector("link[rel~='icon']");
-          return link?.href || (location.origin + "/favicon.ico");
-      },
-      async requestPermission() {
-          if (!("Notification" in window)) {
-              Utils.showAlert("Notifications are not supported in this browser.", "warning");
-              return "denied";
-          }
-          if (Notification.permission === "granted") return "granted";
-          try {
-              const perm = await Notification.requestPermission();
-              return perm;
-          } catch {
-              return Notification.permission;
-          }
-      },
-      canNotify() {
-          return state.notificationsEnabled &&
-              typeof Notification !== "undefined" &&
-              Notification.permission === "granted";
-      },
-      notify(title, body, tag = "wplace-charges", force = false) {
-          if (!this.canNotify()) return false;
-          if (!force && state.notifyOnlyWhenUnfocused && document.hasFocus()) return false;
-          try {
-              new Notification(title, {
-                  body,
-                  tag,
-                  renotify: true,
-                  icon: this.icon(),
-                  badge: this.icon(),
-                  silent: false,
-              });
-              return true;
-          } catch {
-              // Graceful fallback
-              Utils.showAlert(body, "info");
-              return false;
-          }
-      },
-      resetEdgeTracking() {
-          state._lastChargesBelow = state.currentCharges < state.cooldownChargeThreshold;
-          state._lastChargesNotifyAt = 0;
-      },
-      maybeNotifyChargesReached(force = false) {
-          if (!state.notificationsEnabled || !state.notifyOnChargesReached) return;
-          const reached = state.currentCharges >= state.cooldownChargeThreshold;
-          const now = Date.now();
-          const repeatMs = Math.max(1, Number(state.notificationIntervalMinutes || 5)) * 60_000;
-          if (reached) {
-              const shouldEdge = state._lastChargesBelow || force;
-              const shouldRepeat = now - (state._lastChargesNotifyAt || 0) >= repeatMs;
-              if (shouldEdge || shouldRepeat) {
-                  const msg = `Charges ready: ${Math.floor(state.currentCharges)} / ${state.maxCharges}. Threshold: ${state.cooldownChargeThreshold}.`;
-                  this.notify("WPlace — Charges Ready", msg, "wplace-notify-charges");
-                  state._lastChargesNotifyAt = now;
-              }
-              state._lastChargesBelow = false;
-          } else {
-              state._lastChargesBelow = true;
-          }
-      },
-      startPolling() {
-          this.stopPolling();
-          if (!state.notificationsEnabled || !state.notifyOnChargesReached) return;
-          // lightweight background polling
-          this.pollTimer = setInterval(async () => {
-              try {
-                  const { charges, cooldown, max } = await WPlaceService.getCharges();
-                  state.currentCharges = Math.floor(charges);
-                  state.cooldown = cooldown;
-                  state.maxCharges = Math.max(1, Math.floor(max));
-                  this.maybeNotifyChargesReached();
-              } catch { /* ignore */ }
-          }, this.pollIntervalMs);
-      },
-      stopPolling() {
-          if (this.pollTimer) {
-              clearInterval(this.pollTimer);
-              this.pollTimer = null;
-          }
-      },
-      syncFromState() {
-          this.resetEdgeTracking();
-          if (state.notificationsEnabled && state.notifyOnChargesReached) this.startPolling();
-          else this.stopPolling();
-      },
-  };
 
   // COLOR MATCHING FUNCTION - Optimized with caching
   const colorCache = new Map()
@@ -4467,38 +4367,66 @@
             <input type="checkbox" id="enableSpeedToggle" ${CONFIG.PAINTING_SPEED_ENABLED ? 'checked' : ''} style="cursor: pointer;"/>
             <span>Enable painting speed limit (batch size control)</span>
           </label>
-        </div>
-
-        <!-- Notifications Section -->
-        <div style="margin-bottom: 25px;">
-          <label style="display: block; margin-bottom: 12px; color: white; font-weight: 500; font-size: 16px; display: flex; align-items: center; gap: 8px;">
-            <i class="fas fa-bell" style="color: #ffd166; font-size: 16px;"></i>
-            Desktop Notifications
-          </label>
-          <div style="background: rgba(255,255,255,0.1); border-radius: 12px; padding: 18px; border: 1px solid rgba(255,255,255,0.1); display:flex; flex-direction:column; gap:10px;">
-            <label style="display:flex; align-items:center; justify-content:space-between;">
-              <span>Enable notifications</span>
-              <input type="checkbox" id="notifEnabledToggle" ${state.notificationsEnabled ? 'checked' : ''} style="width:18px; height:18px; cursor:pointer;" />
+          
+          <!-- Batch Mode Control -->
+          <div style="margin-top: 15px;">
+            <label style="display: block; margin-bottom: 8px; color: rgba(255,255,255,0.9); font-weight: 500; font-size: 14px;">
+              <i class="fas fa-dice" style="color: #f093fb; margin-right: 6px;"></i>
+              Batch Mode
             </label>
-            <label style="display:flex; align-items:center; justify-content:space-between;">
-              <span>Notify when charges reach threshold</span>
-              <input type="checkbox" id="notifOnChargesToggle" ${state.notifyOnChargesReached ? 'checked' : ''} style="width:18px; height:18px; cursor:pointer;" />
-            </label>
-            <label style="display:flex; align-items:center; justify-content:space-between;">
-              <span>Only when tab is not focused</span>
-              <input type="checkbox" id="notifOnlyUnfocusedToggle" ${state.notifyOnlyWhenUnfocused ? 'checked' : ''} style="width:18px; height:18px; cursor:pointer;" />
-            </label>
-            <div style="display:flex; align-items:center; gap:10px;">
-              <span>Repeat every</span>
-              <input type="number" id="notifIntervalInput" min="1" max="60" value="${state.notificationIntervalMinutes}" style="width:70px; padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); color:#fff;" />
-              <span>minute(s)</span>
-            </div>
-            <div style="display:flex; gap:10px;">
-              <button id="notifRequestPermBtn" class="wplace-btn wplace-btn-secondary" style="flex:1;"><i class="fas fa-unlock"></i><span>Grant Permission</span></button>
-              <button id="notifTestBtn" class="wplace-btn" style="flex:1;"><i class="fas fa-bell"></i><span>Test</span></button>
+            <select id="batchModeSelect" style="
+              width: 100%;
+              padding: 10px 12px;
+              background: rgba(255,255,255,0.15);
+              color: white;
+              border: 1px solid rgba(255,255,255,0.2);
+              border-radius: 8px;
+              font-size: 13px;
+              outline: none;
+              cursor: pointer;
+              margin-bottom: 10px;
+            ">
+              <option value="normal" style="background: #2d3748; color: white;">📦 Normal (Fixed Size)</option>
+              <option value="random" style="background: #2d3748; color: white;">🎲 Random (Range)</option>
+            </select>
+            
+            <!-- Random Range Controls (hidden by default) -->
+            <div id="randomRangeControls" style="display: none; margin-top: 10px;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                  <label style="display: block; color: rgba(255,255,255,0.8); font-size: 12px; margin-bottom: 5px;">Min</label>
+                  <input type="number" id="randomBatchMin" min="1" max="1000" value="${CONFIG.RANDOM_BATCH_RANGE.MIN}" style="
+                    width: 100%;
+                    padding: 8px;
+                    background: rgba(255,255,255,0.1);
+                    color: white;
+                    border: 1px solid rgba(255,255,255,0.2);
+                    border-radius: 6px;
+                    font-size: 13px;
+                    outline: none;
+                  ">
+                </div>
+                <div>
+                  <label style="display: block; color: rgba(255,255,255,0.8); font-size: 12px; margin-bottom: 5px;">Max</label>
+                  <input type="number" id="randomBatchMax" min="1" max="1000" value="${CONFIG.RANDOM_BATCH_RANGE.MAX}" style="
+                    width: 100%;
+                    padding: 8px;
+                    background: rgba(255,255,255,0.1);
+                    color: white;
+                    border: 1px solid rgba(255,255,255,0.2);
+                    border-radius: 6px;
+                    font-size: 13px;
+                    outline: none;
+                  ">
+                </div>
+              </div>
+              <p style="font-size: 11px; color: rgba(255,255,255,0.6); margin: 8px 0 0 0; text-align: center;">
+                🎲 Random batch size between min and max values
+              </p>
             </div>
           </div>
         </div>
+
 
         <!-- Theme Selection Section -->
         <div style="margin-bottom: 25px;">
@@ -5035,22 +4963,9 @@
         // Update functional thresholds
         CONFIG.TRANSPARENCY_THRESHOLD = state.customTransparencyThreshold;
         CONFIG.WHITE_THRESHOLD = state.customWhiteThreshold;
-        // Notifications
-        const notifEnabledToggle = document.getElementById('notifEnabledToggle');
-        const notifOnChargesToggle = document.getElementById('notifOnChargesToggle');
-        const notifOnlyUnfocusedToggle = document.getElementById('notifOnlyUnfocusedToggle');
-        const notifIntervalInput = document.getElementById('notifIntervalInput');
-        if (notifEnabledToggle) state.notificationsEnabled = !!notifEnabledToggle.checked;
-        if (notifOnChargesToggle) state.notifyOnChargesReached = !!notifOnChargesToggle.checked;
-        if (notifOnlyUnfocusedToggle) state.notifyOnlyWhenUnfocused = !!notifOnlyUnfocusedToggle.checked;
-        if (notifIntervalInput) {
-            const v = parseInt(notifIntervalInput.value, 10);
-            if (!isNaN(v) && v >= 1 && v <= 60) state.notificationIntervalMinutes = v;
-        }
         saveBotSettings();
         Utils.showAlert(Utils.t("settingsSaved"), "success");
         closeSettingsBtn.click();
-        NotificationManager.syncFromState();
       });
 
       makeDraggable(settingsContainer)
@@ -5067,6 +4982,54 @@
             'manual': 'Manual Pixel Placement'
           }
           Utils.showAlert(`Token source set to: ${sourceNames[state.tokenSource]}`, "success")
+        })
+      }
+
+      // Batch mode controls
+      const batchModeSelect = settingsContainer.querySelector("#batchModeSelect")
+      const randomRangeControls = settingsContainer.querySelector("#randomRangeControls")
+      const randomBatchMin = settingsContainer.querySelector("#randomBatchMin")
+      const randomBatchMax = settingsContainer.querySelector("#randomBatchMax")
+      
+      if (batchModeSelect) {
+        batchModeSelect.addEventListener("change", (e) => {
+          state.batchMode = e.target.value
+          if (randomRangeControls) {
+            randomRangeControls.style.display = e.target.value === 'random' ? 'block' : 'none'
+          }
+          saveBotSettings()
+          console.log(`📦 Batch mode changed to: ${state.batchMode}`)
+          Utils.showAlert(`Batch mode set to: ${state.batchMode === 'random' ? 'Random Range' : 'Normal Fixed Size'}`, "success")
+        })
+      }
+      
+      if (randomBatchMin) {
+        randomBatchMin.addEventListener("input", (e) => {
+          const min = parseInt(e.target.value)
+          if (min >= 1 && min <= 1000) {
+            state.randomBatchMin = min
+            // Ensure min doesn't exceed max
+            if (randomBatchMax && min > state.randomBatchMax) {
+              state.randomBatchMax = min
+              randomBatchMax.value = min
+            }
+            saveBotSettings()
+          }
+        })
+      }
+      
+      if (randomBatchMax) {
+        randomBatchMax.addEventListener("input", (e) => {
+          const max = parseInt(e.target.value)
+          if (max >= 1 && max <= 1000) {
+            state.randomBatchMax = max
+            // Ensure max doesn't go below min
+            if (randomBatchMin && max < state.randomBatchMin) {
+              state.randomBatchMin = max
+              randomBatchMin.value = max
+            }
+            saveBotSettings()
+          }
         })
       }
 
@@ -5128,22 +5091,6 @@
       }
 
   // (Advanced color listeners moved outside to work with resize dialog)
-      // (Advanced color listeners moved outside to work with resize dialog)
-      // Notifications listeners
-      const notifPermBtn = settingsContainer.querySelector("#notifRequestPermBtn");
-      const notifTestBtn = settingsContainer.querySelector("#notifTestBtn");
-      if (notifPermBtn) {
-        notifPermBtn.addEventListener("click", async () => {
-          const perm = await NotificationManager.requestPermission();
-          if (perm === "granted") Utils.showAlert("Notifications enabled.", "success");
-          else Utils.showAlert("Notifications permission denied.", "warning");
-        });
-      }
-      if (notifTestBtn) {
-        notifTestBtn.addEventListener("click", () => {
-          NotificationManager.notify("WPlace — Test", "This is a test notification.", "wplace-notify-test", true);
-        });
-      }
 
     }
 
@@ -5356,8 +5303,6 @@
       state.currentCharges = Math.floor(charges);
       state.cooldown = cooldown;
       state.maxCharges = Math.floor(max) > 1 ? Math.floor(max) : state.maxCharges;
-      // Evaluate notifications every time we refresh server-side charges
-      NotificationManager.maybeNotifyChargesReached();
 
       if (cooldownSlider.max != state.maxCharges) {
         cooldownSlider.max = state.maxCharges;
@@ -6482,13 +6427,10 @@
         state.cooldownChargeThreshold = threshold;
         cooldownValue.textContent = threshold;
         saveBotSettings();
-        NotificationManager.resetEdgeTracking(); // prevent spurious notify after threshold change
       });
     }
 
     loadBotSettings();
-    // Ensure notification poller reflects current settings
-    NotificationManager.syncFromState();
   }
 
   async function processImage() {
@@ -6644,10 +6586,11 @@
             localY: y,
           });
 
-          // Use paintingSpeed as batch size, but limit by available charges
-          const maxBatchSize = Math.min(state.paintingSpeed, Math.floor(state.currentCharges));
+          // Calculate batch size based on mode (normal/random)
+          const maxBatchSize = calculateBatchSize();
           if (pixelBatch.pixels.length >= maxBatchSize) {
-            console.log(`📦 Sending batch with ${pixelBatch.pixels.length} pixels (batch size setting: ${state.paintingSpeed}, max allowed: ${maxBatchSize})`);
+            const modeText = state.batchMode === 'random' ? `random (${state.randomBatchMin}-${state.randomBatchMax})` : 'normal';
+            console.log(`📦 Sending batch with ${pixelBatch.pixels.length} pixels (mode: ${modeText}, target: ${maxBatchSize})`);
             const success = await sendBatchWithRetry(pixelBatch.pixels, pixelBatch.regionX, pixelBatch.regionY);
 
             if (success) {
@@ -6687,8 +6630,6 @@
             state.cooldown = cooldown;
 
             if (state.currentCharges >= state.cooldownChargeThreshold) {
-              // Edge-trigger a notification the instant threshold is crossed
-              NotificationManager.maybeNotifyChargesReached(true);
               updateStats();
               break;
             }
@@ -6754,6 +6695,28 @@
     console.log(`   Total processed: ${state.paintedPixels + skippedPixels.transparent + skippedPixels.white + skippedPixels.alreadyPainted}`);
 
     updateStats()
+  }
+
+  // Helper function to calculate batch size based on mode
+  function calculateBatchSize() {
+    let targetBatchSize;
+    
+    if (state.batchMode === 'random') {
+      // Generate random batch size within the specified range
+      const min = Math.max(1, state.randomBatchMin);
+      const max = Math.max(min, state.randomBatchMax);
+      targetBatchSize = Math.floor(Math.random() * (max - min + 1)) + min;
+      console.log(`🎲 Random batch size generated: ${targetBatchSize} (range: ${min}-${max})`);
+    } else {
+      // Normal mode - use the fixed paintingSpeed value
+      targetBatchSize = state.paintingSpeed;
+    }
+    
+    // Always limit by available charges
+    const maxAllowed = Math.floor(state.currentCharges);
+    const finalBatchSize = Math.min(targetBatchSize, maxAllowed);
+    
+    return finalBatchSize;
   }
 
   // Helper function to retry batch until success with exponential backoff
@@ -6885,6 +6848,9 @@
       const settings = {
         paintingSpeed: state.paintingSpeed,
         paintingSpeedEnabled: document.getElementById('enableSpeedToggle')?.checked,
+        batchMode: state.batchMode, // "normal" or "random"
+        randomBatchMin: state.randomBatchMin,
+        randomBatchMax: state.randomBatchMax,
         cooldownChargeThreshold: state.cooldownChargeThreshold,
         tokenSource: state.tokenSource, // "generator", "hybrid", or "manual"
         minimized: state.minimized,
@@ -6903,11 +6869,6 @@
   resizeIgnoreMask: (state.resizeIgnoreMask && state.resizeSettings && state.resizeSettings.width * state.resizeSettings.height === state.resizeIgnoreMask.length)
     ? { w: state.resizeSettings.width, h: state.resizeSettings.height, data: btoa(String.fromCharCode(...state.resizeIgnoreMask)) }
     : null,
-        // Notifications
-        notificationsEnabled: state.notificationsEnabled,
-        notifyOnChargesReached: state.notifyOnChargesReached,
-        notifyOnlyWhenUnfocused: state.notifyOnlyWhenUnfocused,
-        notificationIntervalMinutes: state.notificationIntervalMinutes,
       };
       CONFIG.PAINTING_SPEED_ENABLED = settings.paintingSpeedEnabled;
       // AUTO_CAPTCHA_ENABLED is always true - no need to save/load
@@ -6925,6 +6886,9 @@
       const settings = JSON.parse(saved);
 
       state.paintingSpeed = settings.paintingSpeed || CONFIG.PAINTING_SPEED.DEFAULT;
+      state.batchMode = settings.batchMode || CONFIG.BATCH_MODE; // Default to "normal"
+      state.randomBatchMin = settings.randomBatchMin || CONFIG.RANDOM_BATCH_RANGE.MIN;
+      state.randomBatchMax = settings.randomBatchMax || CONFIG.RANDOM_BATCH_RANGE.MAX;
       state.cooldownChargeThreshold = settings.cooldownChargeThreshold || CONFIG.COOLDOWN_CHARGE_THRESHOLD;
       state.tokenSource = settings.tokenSource || CONFIG.TOKEN_SOURCE; // Default to "generator"
       state.minimized = settings.minimized ?? false;
@@ -6941,11 +6905,6 @@
   state.paintWhitePixels = settings.paintWhitePixels ?? true;
   state.resizeSettings = settings.resizeSettings ?? null;
   state.originalImage = settings.originalImage ?? null;
-      // Notifications
-      state.notificationsEnabled = settings.notificationsEnabled ?? CONFIG.NOTIFICATIONS.ENABLED;
-      state.notifyOnChargesReached = settings.notifyOnChargesReached ?? CONFIG.NOTIFICATIONS.ON_CHARGES_REACHED;
-      state.notifyOnlyWhenUnfocused = settings.notifyOnlyWhenUnfocused ?? CONFIG.NOTIFICATIONS.ONLY_WHEN_UNFOCUSED;
-      state.notificationIntervalMinutes = settings.notificationIntervalMinutes ?? CONFIG.NOTIFICATIONS.REPEAT_MINUTES;
   // Restore ignore mask if dims match current resizeSettings
   if (settings.resizeIgnoreMask && settings.resizeIgnoreMask.data && state.resizeSettings && settings.resizeIgnoreMask.w === state.resizeSettings.width && settings.resizeIgnoreMask.h === state.resizeSettings.height) {
     try {
@@ -6965,6 +6924,21 @@
 
       const enableSpeedToggle = document.getElementById('enableSpeedToggle');
       if (enableSpeedToggle) enableSpeedToggle.checked = CONFIG.PAINTING_SPEED_ENABLED;
+
+      // Batch mode UI initialization
+      const batchModeSelect = document.getElementById('batchModeSelect');
+      if (batchModeSelect) batchModeSelect.value = state.batchMode;
+      
+      const randomRangeControls = document.getElementById('randomRangeControls');
+      if (randomRangeControls) {
+        randomRangeControls.style.display = state.batchMode === 'random' ? 'block' : 'none';
+      }
+      
+      const randomBatchMin = document.getElementById('randomBatchMin');
+      if (randomBatchMin) randomBatchMin.value = state.randomBatchMin;
+      
+      const randomBatchMax = document.getElementById('randomBatchMax');
+      if (randomBatchMax) randomBatchMax.value = state.randomBatchMax;
 
       // AUTO_CAPTCHA_ENABLED is always true - no toggle to set
 
@@ -6994,17 +6968,7 @@
   const transparencyThresholdInput = document.getElementById('transparencyThresholdInput');
   if (transparencyThresholdInput) transparencyThresholdInput.value = state.customTransparencyThreshold;
   const whiteThresholdInput = document.getElementById('whiteThresholdInput');
-      if (whiteThresholdInput) whiteThresholdInput.value = state.customWhiteThreshold;
-      // Notifications UI
-      const notifEnabledToggle = document.getElementById('notifEnabledToggle');
-      if (notifEnabledToggle) notifEnabledToggle.checked = state.notificationsEnabled;
-      const notifOnChargesToggle = document.getElementById('notifOnChargesToggle');
-      if (notifOnChargesToggle) notifOnChargesToggle.checked = state.notifyOnChargesReached;
-      const notifOnlyUnfocusedToggle = document.getElementById('notifOnlyUnfocusedToggle');
-      if (notifOnlyUnfocusedToggle) notifOnlyUnfocusedToggle.checked = state.notifyOnlyWhenUnfocused;
-      const notifIntervalInput = document.getElementById('notifIntervalInput');
-      if (notifIntervalInput) notifIntervalInput.value = state.notificationIntervalMinutes;
-      NotificationManager.resetEdgeTracking();
+  if (whiteThresholdInput) whiteThresholdInput.value = state.customWhiteThreshold;
 
     } catch (e) {
       console.warn("Could not load bot settings:", e);
