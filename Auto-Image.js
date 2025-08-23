@@ -5218,6 +5218,7 @@
         }
 
         updateStats = async () => {
+            localStorage.removeItem("lp");
             const { charges, cooldown, max } = await WPlaceService.getCharges();
             state.currentCharges = Math.floor(charges);
             state.cooldown = cooldown;
